@@ -79,16 +79,16 @@ export async function POST(req: NextRequest) {
                     },
                 },
                 update: {
-                    name: c.name,
-                    code: c.course_code || null,
-                    term: c.term?.name || null,
+                    name: c.name?.substring(0, 200) || "Unknown Course",
+                    code: c.course_code?.substring(0, 50) || null,
+                    term: c.term?.name?.substring(0, 50) || null,
                 },
                 create: {
                     userId: user.id,
                     canvasId: BigInt(c.id),
-                    name: c.name,
-                    code: c.course_code || null,
-                    term: c.term?.name || null,
+                    name: c.name?.substring(0, 200) || "Unknown Course",
+                    code: c.course_code?.substring(0, 50) || null,
+                    term: c.term?.name?.substring(0, 50) || null,
                 },
             });
             coursesUpserted++;
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
                             },
                         },
                         update: {
-                            name: a.name,
+                            name: a.name?.substring(0, 500) || "Untitled Assignment",
                             dueAt: a.due_at ? new Date(a.due_at) : null,
                             pointsPossible: a.points_possible ?? null,
                             score: submission.score ?? null,
@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
                             userId: user.id,
                             courseId: dbCourse.id,
                             canvasId: BigInt(a.id),
-                            name: a.name,
+                            name: a.name?.substring(0, 500) || "Untitled Assignment",
                             dueAt: a.due_at ? new Date(a.due_at) : null,
                             pointsPossible: a.points_possible ?? null,
                             score: submission.score ?? null,
