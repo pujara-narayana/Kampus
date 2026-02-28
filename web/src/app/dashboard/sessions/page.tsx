@@ -2,7 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,12 +17,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { api } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
 interface Session {
   id: string;
   title: string;
   description: string | null;
+  courseId?: string | null;
   courseName: string | null;
   building: string | null;
   room: string | null;
@@ -36,11 +38,23 @@ interface Session {
   hasJoined: boolean;
 }
 
+interface InviteUser {
+  id: string;
+  displayName: string | null;
+  avatarUrl?: string | null;
+}
+
 export default function SessionsPage() {
+  const { user } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [inviteSessionId, setInviteSessionId] = useState<string | null>(null);
+  const [inviteUsers, setInviteUsers] = useState<InviteUser[]>([]);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
     loadSessions();
@@ -89,6 +103,84 @@ export default function SessionsPage() {
     } catch {
       toast.error("Failed to join session");
     }
+  }
+
+  const openInvite = useCallback(
+    async (session: Session) => {
+      setInviteSessionId(session.id);
+      setSelectedUserIds(new Set());
+      setInviteLoading(true);
+      const myId = user?.id;
+      try {
+        const [peopleRes, connRes] = await Promise.allSettled([
+          api.getPeople(),
+          api.getConnections(),
+        ]);
+        const people: InviteUser[] =
+          peopleRes.status === "fulfilled"
+            ? ((peopleRes.value as { people?: InviteUser[] }).people || [])
+            : [];
+        const connections =
+          connRes.status === "fulfilled"
+            ? ((connRes.value as { connections?: Record<string, unknown>[] }).connections || [])
+            : [];
+        const friends: InviteUser[] =
+          myId
+            ? connections
+                .filter((c: Record<string, unknown>) => (c.status as string) === "accepted")
+                .map((c: Record<string, unknown>) => {
+                  const requester = c.requester as Record<string, unknown> | undefined;
+                  const receiver = c.receiver as Record<string, unknown> | undefined;
+                  const requesterId = c.requesterId as string;
+                  const other = requesterId === myId ? receiver : requester;
+                  return {
+                    id: other?.id as string,
+                    displayName: (other?.displayName as string | null) ?? null,
+                    avatarUrl: (other?.avatarUrl as string | null) ?? null,
+                  } as InviteUser;
+                })
+                .filter((u) => u.id)
+            : [];
+        const seen = new Set<string>();
+        const merged: InviteUser[] = [];
+        for (const u of [...friends, ...people]) {
+          if (u.id && !seen.has(u.id)) {
+            seen.add(u.id);
+            merged.push(u);
+          }
+        }
+        setInviteUsers(merged);
+      } catch {
+        setInviteUsers([]);
+      } finally {
+        setInviteLoading(false);
+      }
+    },
+    [user?.id]
+  );
+
+  async function handleInviteSubmit() {
+    if (!inviteSessionId || selectedUserIds.size === 0) return;
+    setInviting(true);
+    try {
+      const res = await api.inviteToSession(inviteSessionId, Array.from(selectedUserIds));
+      toast.success(res.message || `Invited ${res.invited} user(s).`);
+      setInviteSessionId(null);
+      loadSessions();
+    } catch {
+      toast.error("Failed to send invites");
+    } finally {
+      setInviting(false);
+    }
+  }
+
+  const toggleInviteUser = (userId: string) => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
   }
 
   return (
@@ -249,7 +341,16 @@ export default function SessionsPage() {
                     {session.description}
                   </p>
                 )}
-                <div className="pt-2">
+                <div className="pt-2 flex flex-wrap gap-2">
+                  {session.isCreator && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openInvite(session)}
+                    >
+                      Invite
+                    </Button>
+                  )}
                   {session.isCreator ? (
                     <Badge variant="outline">Your Session</Badge>
                   ) : session.hasJoined ? (
@@ -271,6 +372,50 @@ export default function SessionsPage() {
           ))}
         </div>
       )}
+
+      <Dialog open={!!inviteSessionId} onOpenChange={(open) => !open && setInviteSessionId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite to session</DialogTitle>
+          </DialogHeader>
+          {inviteLoading ? (
+            <p className="text-sm text-muted-foreground">Loading people...</p>
+          ) : inviteUsers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No one to invite right now. Sync courses or add connections in Social to see classmates.
+            </p>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Select classmates to invite (from your courses or connections).
+              </p>
+              <div className="max-h-60 overflow-y-auto space-y-2">
+                {inviteUsers.map((u) => (
+                  <label
+                    key={u.id}
+                    className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedUserIds.has(u.id)}
+                      onChange={() => toggleInviteUser(u.id)}
+                    />
+                    <span className="text-sm font-medium">
+                      {u.displayName || "Student"}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <Button
+                onClick={handleInviteSubmit}
+                disabled={selectedUserIds.size === 0 || inviting}
+              >
+                {inviting ? "Sending…" : `Invite ${selectedUserIds.size} user(s)`}
+              </Button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

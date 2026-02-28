@@ -89,12 +89,6 @@ export default function DashboardPage() {
   const unreadNotifs = (data?.notifications || []).filter((n: any) => !n.read);
   const freeFoodEvents = events.filter((e: any) => e.hasFreeFood);
 
-  const isEmpty =
-    assignments.length === 0 &&
-    events.length === 0 &&
-    sessions.length === 0 &&
-    unreadNotifs.length === 0;
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -104,11 +98,9 @@ export default function DashboardPage() {
             Your campus life, unified. Never miss free food again.
           </p>
         </div>
-        {isEmpty && (
-          <Button onClick={handleSeed} disabled={seeding} variant="outline">
-            {seeding ? "Seeding..." : "🌱 Load Demo Data"}
-          </Button>
-        )}
+        <Button onClick={handleSeed} disabled={seeding} variant="outline">
+          {seeding ? "Seeding..." : "🌱 Load Demo Data"}
+        </Button>
       </div>
 
       {/* Stats Row */}

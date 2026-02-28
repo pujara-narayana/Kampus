@@ -96,6 +96,16 @@ The app will be available at [http://localhost:3000](http://localhost:3000)
 - [ ] (Optional) Set `ANTHROPIC_API_KEY` for AI features
 - [ ] (Optional) Seed campus buildings data via `/api/seed` endpoint
 
+## Test student (for social / demo)
+
+After running the seed (POST to `/api/seed` while logged in), a **test student** is created so you can try friend requests and session invites:
+
+- **Email:** `test@kampus.demo`
+- **Password:** `TestStudent123!`
+- **Display name:** Test Student
+
+They share the same courses as your seeded account, so they appear under **Social → People in your courses**. Log in as the test student in another browser or incognito window to accept requests or get invited to sessions.
+
 ## Troubleshooting
 
 ### Database Connection Issues
