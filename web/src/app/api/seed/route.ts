@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser } from "@/lib/auth";
+import { getAuthUser, hashPassword } from "@/lib/auth";
+
+export const TEST_STUDENT_EMAIL = "test@kampus.demo";
+export const TEST_STUDENT_PASSWORD = "TestStudent123!";
 
 const UNL_BUILDINGS = [
   { name: "Avery Hall", shortName: "AVRY", lat: 40.8194, lng: -96.7056 },
@@ -258,8 +261,54 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // 13. Create test student (same courses so they appear in "People in your courses")
+    let testStudent = await prisma.user.findFirst({
+      where: { email: TEST_STUDENT_EMAIL },
+    });
+    if (!testStudent) {
+      const testStudentPassword = await hashPassword(TEST_STUDENT_PASSWORD);
+      testStudent = await prisma.user.create({
+        data: {
+          email: TEST_STUDENT_EMAIL,
+          password: testStudentPassword,
+          displayName: "Test Student",
+          nuid: "99999999",
+        },
+      });
+    }
+    const testStudentCourses: { id: string; canvasId: bigint }[] = [];
+    for (const c of courseData) {
+      const tc = await prisma.course.upsert({
+        where: { canvasId_userId: { canvasId: c.canvasId, userId: testStudent.id } },
+        update: {},
+        create: {
+          canvasId: c.canvasId,
+          userId: testStudent.id,
+          name: c.name,
+          code: c.code,
+          term: c.term,
+          currentGrade: "B+",
+          currentScore: 88,
+        },
+      });
+      testStudentCourses.push({ id: tc.id, canvasId: tc.canvasId });
+    }
+    for (const tc of testStudentCourses) {
+      await prisma.userCourseLink.upsert({
+        where: { userId_courseId: { userId: testStudent.id, courseId: tc.id } },
+        update: {},
+        create: { userId: testStudent.id, courseId: tc.id, canvasCourseId: tc.canvasId },
+      });
+    }
+
     return NextResponse.json({
       message: "Demo data seeded successfully!",
+      testStudent: {
+        email: TEST_STUDENT_EMAIL,
+        password: TEST_STUDENT_PASSWORD,
+        displayName: testStudent.displayName,
+        hint: "Log in as this user in another browser/incognito to test friend requests and session invites.",
+      },
       seeded: {
         buildings: buildings.length,
         courses: courses.length,
@@ -270,6 +319,7 @@ export async function POST(req: NextRequest) {
         notifications: 6,
         streaks: 3,
         feedItems: 4,
+        testStudent: true,
       },
     });
   } catch (error) {

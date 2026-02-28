@@ -14,6 +14,7 @@ const navItems = [
   { href: "/dashboard/sessions", label: "Study Sessions", icon: "📚" },
   { href: "/dashboard/insights", label: "Insights", icon: "📊" },
   { href: "/dashboard/social", label: "Social", icon: "👥" },
+  { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
 ];
 
 export function Sidebar() {

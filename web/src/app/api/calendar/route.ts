@@ -13,6 +13,19 @@ function defaultCalendarRange(): { timeMin: Date; timeMax: Date } {
   return { timeMin: start, timeMax: end };
 }
 
+/** Recursively convert BigInt to string so NextResponse.json() can serialize. */
+function serializeBigInt<T>(obj: T): T {
+  if (typeof obj === "bigint") return String(obj) as unknown as T;
+  if (obj instanceof Date) return obj;
+  if (Array.isArray(obj)) return obj.map(serializeBigInt) as unknown as T;
+  if (obj !== null && typeof obj === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) out[k] = serializeBigInt(v);
+    return out as unknown as T;
+  }
+  return obj;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const user = await getAuthUser(req);
@@ -89,14 +102,15 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    const payload = {
       classes,
       assignments,
       events,
       studySessions,
       googleEvents,
       googleConnected: Boolean(tokens?.access_token),
-    });
+    };
+    return NextResponse.json(serializeBigInt(payload));
   } catch (error) {
     console.error("Calendar error:", error);
     return NextResponse.json(

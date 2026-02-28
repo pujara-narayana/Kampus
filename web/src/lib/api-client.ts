@@ -87,6 +87,11 @@ export const api = {
     fetchAPI<{ participant: Record<string, unknown> }>(`/api/sessions/${id}/join`, {
       method: "POST",
     }),
+  inviteToSession: (sessionId: string, userIds: string[]) =>
+    fetchAPI<{ invited: number; skipped: number; message: string }>(
+      `/api/sessions/${sessionId}/invite`,
+      { method: "POST", body: JSON.stringify({ userIds }) }
+    ),
 
   // Social
   getFeed: () => fetchAPI<{ items: Record<string, unknown>[] }>("/api/social/feed"),
@@ -97,6 +102,16 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ receiverId }),
     }),
+  updateConnection: (connectionId: string, action: "accept" | "decline") =>
+    fetchAPI<{ connection?: Record<string, unknown>; message: string }>(
+      `/api/social/connect/${connectionId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ action }),
+      }
+    ),
+  getPeople: () =>
+    fetchAPI<{ people: Record<string, unknown>[]; total: number }>("/api/social/people"),
   getSameBoat: (courseId: string) =>
     fetchAPI<{ users: Record<string, unknown>[] }>(`/api/social/same-boat?courseId=${courseId}`),
 

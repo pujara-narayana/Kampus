@@ -9,12 +9,24 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user's course IDs
+    // Get user's course IDs (for sessions in my courses)
     const userCourses = await prisma.userCourseLink.findMany({
       where: { userId: user.id },
       select: { courseId: true },
     });
     const courseIds = userCourses.map((uc) => uc.courseId);
+
+    // Friend IDs (accepted connections) so we can show friends' sessions
+    const connections = await prisma.connection.findMany({
+      where: {
+        status: "accepted",
+        OR: [{ requesterId: user.id }, { receiverId: user.id }],
+      },
+      select: { requesterId: true, receiverId: true },
+    });
+    const friendIds = connections.map((c) =>
+      c.requesterId === user.id ? c.receiverId : c.requesterId
+    );
 
     const sessions = await prisma.studySession.findMany({
       where: {
@@ -22,6 +34,7 @@ export async function GET(req: NextRequest) {
           { courseId: { in: courseIds } },
           { creatorId: user.id },
           { participants: { some: { userId: user.id } } },
+          ...(friendIds.length > 0 ? [{ creatorId: { in: friendIds } }] : []),
         ],
         status: { in: ["upcoming", "active"] },
       },
