@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api-client";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -21,6 +23,7 @@ const TYPE_COLORS: Record<string, { bg: string; text: string; label: string }> =
   event: { bg: "bg-green-100 dark:bg-green-900/30", text: "text-green-700 dark:text-green-300", label: "Event" },
   study_session: { bg: "bg-yellow-100 dark:bg-yellow-900/30", text: "text-yellow-700 dark:text-yellow-300", label: "Study Session" },
   free_food: { bg: "bg-orange-100 dark:bg-orange-900/30", text: "text-orange-700 dark:text-orange-300", label: "Free Food" },
+  google: { bg: "bg-violet-100 dark:bg-violet-900/30", text: "text-violet-700 dark:text-violet-300", label: "Google" },
 };
 
 function getDaysInMonth(year: number, month: number) {
@@ -56,10 +59,13 @@ function generateClassDates(cls: any, year: number, month: number): CalendarItem
 }
 
 export default function CalendarPage() {
+  const searchParams = useSearchParams();
   const [items, setItems] = useState<CalendarItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [gcalConnecting, setGcalConnecting] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
 
   const year = currentDate.getFullYear();
@@ -67,10 +73,14 @@ export default function CalendarPage() {
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
 
+  // Build date range for the current month view (for API and Google Calendar)
+  const from = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  const to = `${year}-${String(month + 1).padStart(2, "0")}-${String(getDaysInMonth(year, month)).padStart(2, "0")}`;
+
   useEffect(() => {
     async function load() {
       try {
-        const res = await api.getCalendar();
+        const res = await api.getCalendar(from, to);
         const mapped: CalendarItem[] = [];
 
         // Map classes (recurring schedule)
@@ -116,7 +126,20 @@ export default function CalendarPage() {
           });
         }
 
+        // Map Google Calendar events
+        const googleEvents = (res as any).googleEvents || [];
+        for (const g of googleEvents) {
+          mapped.push({
+            id: `gcal-${g.id}`,
+            title: g.title,
+            start: g.start,
+            end: g.end,
+            type: "google",
+          });
+        }
+
         setItems(mapped);
+        setGoogleConnected(Boolean((res as any).googleConnected));
       } catch {
         // Show empty calendar
       } finally {
@@ -124,7 +147,17 @@ export default function CalendarPage() {
       }
     }
     load();
-  }, [year, month]);
+  }, [year, month, from, to]);
+
+  const handleConnectGoogleCalendar = async () => {
+    setGcalConnecting(true);
+    try {
+      const { redirectUrl } = await api.getGcalAuthUrl();
+      window.location.href = redirectUrl;
+    } catch {
+      setGcalConnecting(false);
+    }
+  };
 
   const getItemsForDate = (dateStr: string) => {
     return items.filter((item) => {
@@ -140,14 +173,44 @@ export default function CalendarPage() {
 
   const monthName = currentDate.toLocaleString("default", { month: "long" });
 
+  const gcalStatus = searchParams.get("gcal");
+  const gcalMessage = searchParams.get("message");
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Calendar</h1>
-        <p className="text-muted-foreground">
-          All your classes, assignments, events, and study sessions in one view.
-        </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Calendar</h1>
+          <p className="text-muted-foreground">
+            All your classes, assignments, events, and study sessions in one view.
+          </p>
+        </div>
+        {!googleConnected ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleConnectGoogleCalendar}
+            disabled={gcalConnecting}
+          >
+            {gcalConnecting ? "Redirecting…" : "Connect Google Calendar"}
+          </Button>
+        ) : (
+          <Badge variant="secondary" className="text-xs">
+            Google Calendar connected
+          </Badge>
+        )}
       </div>
+
+      {gcalStatus === "connected" && (
+        <p className="text-sm text-green-600 dark:text-green-400">
+          Google Calendar is now connected. Your events will appear on this calendar.
+        </p>
+      )}
+      {gcalStatus === "error" && (
+        <p className="text-sm text-destructive">
+          {gcalMessage ? decodeURIComponent(gcalMessage) : "Could not connect Google Calendar."}
+        </p>
+      )}
 
       {/* Legend */}
       <div className="flex flex-wrap gap-3">

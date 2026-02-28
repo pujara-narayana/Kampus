@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
+import {
+  fetchGoogleCalendarEvents,
+  type GoogleTokens,
+} from "@/lib/google-calendar";
+
+function defaultCalendarRange(): { timeMin: Date; timeMax: Date } {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59);
+  return { timeMin: start, timeMax: end };
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,6 +29,11 @@ export async function GET(req: NextRequest) {
       ...(to ? { lte: new Date(to) } : {}),
     };
     const hasDateFilter = from || to;
+
+    const timeMin = from ? new Date(from) : defaultCalendarRange().timeMin;
+    const timeMax = to
+      ? new Date(to)
+      : defaultCalendarRange().timeMax;
 
     const [classes, assignments, events, studySessions] = await Promise.all([
       prisma.classSchedule.findMany({
@@ -58,11 +74,28 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
+    let googleEvents: Awaited<ReturnType<typeof fetchGoogleCalendarEvents>> = [];
+    const tokens = user.googleToken as GoogleTokens | null;
+    if (tokens?.access_token) {
+      try {
+        googleEvents = await fetchGoogleCalendarEvents(
+          tokens,
+          timeMin,
+          timeMax
+        );
+      } catch (err) {
+        console.error("Google Calendar fetch error:", err);
+        // Return other calendar data; googleEvents stays []
+      }
+    }
+
     return NextResponse.json({
       classes,
       assignments,
       events,
       studySessions,
+      googleEvents,
+      googleConnected: Boolean(tokens?.access_token),
     });
   } catch (error) {
     console.error("Calendar error:", error);
