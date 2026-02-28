@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 
+type PrismaWithGroupChat = typeof prisma & {
+  groupChat?: { findUnique: (args: { where: { sessionId: string } }) => Promise<{ id: string } | null> };
+  groupChatMember?: { upsert: (args: unknown) => Promise<unknown>; updateMany: (args: unknown) => Promise<unknown> };
+};
+
+function getGroupChatBySessionId(sessionId: string) {
+  const p = prisma as PrismaWithGroupChat;
+  return p.groupChat ? p.groupChat.findUnique({ where: { sessionId } }) : Promise.resolve(null);
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -59,10 +69,11 @@ export async function POST(
         });
       }
 
-      // Add to group chat (upsert handles re-joining)
-      const groupChat = await prisma.groupChat.findUnique({ where: { sessionId: id } });
-      if (groupChat) {
-        await prisma.groupChatMember.upsert({
+      // Add to group chat (upsert handles re-joining) — skip if client has no groupChat (e.g. client not regenerated)
+      const groupChat = await getGroupChatBySessionId(id);
+      const p = prisma as PrismaWithGroupChat;
+      if (groupChat && p.groupChatMember) {
+        await p.groupChatMember.upsert({
           where: { groupChatId_userId: { groupChatId: groupChat.id, userId: user.id } },
           update: { removedAt: null },
           create: { groupChatId: groupChat.id, userId: user.id, role: "member" },
@@ -81,10 +92,11 @@ export async function POST(
       },
     });
 
-    // Add to group chat
-    const groupChat = await prisma.groupChat.findUnique({ where: { sessionId: id } });
-    if (groupChat) {
-      await prisma.groupChatMember.upsert({
+    // Add to group chat — skip if client has no groupChat
+    const groupChat = await getGroupChatBySessionId(id);
+    const p = prisma as PrismaWithGroupChat;
+    if (groupChat && p.groupChatMember) {
+      await p.groupChatMember.upsert({
         where: { groupChatId_userId: { groupChatId: groupChat.id, userId: user.id } },
         update: { removedAt: null },
         create: { groupChatId: groupChat.id, userId: user.id, role: "member" },
@@ -148,10 +160,11 @@ export async function DELETE(
       data: { status: "declined", respondedAt: new Date() },
     });
 
-    // Remove from group chat
-    const groupChat = await prisma.groupChat.findUnique({ where: { sessionId: id } });
-    if (groupChat) {
-      await prisma.groupChatMember.updateMany({
+    // Remove from group chat — skip if client has no groupChat
+    const groupChat = await getGroupChatBySessionId(id);
+    const p = prisma as PrismaWithGroupChat;
+    if (groupChat && p.groupChatMember) {
+      await p.groupChatMember.updateMany({
         where: { groupChatId: groupChat.id, userId: user.id, removedAt: null },
         data: { removedAt: new Date() },
       });
