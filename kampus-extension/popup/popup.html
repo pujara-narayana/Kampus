@@ -108,6 +108,54 @@
     }
     .btn-secondary:hover { background: rgba(255,255,255,0.1); color: #e2e8f0; }
 
+    /* Login form */
+    .login-section {
+      padding: 14px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .login-section .section-title { margin-bottom: 10px; }
+    .login-form { display: flex; flex-direction: column; gap: 8px; }
+    .login-form input {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: #e2e8f0;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .login-form input:focus {
+      border-color: #3b82f6;
+    }
+    .login-form input::placeholder { color: #64748b; }
+    .login-error {
+      color: #f87171;
+      font-size: 12px;
+      display: none;
+    }
+    .account-info {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+    }
+    .account-email {
+      font-size: 13px;
+      color: #4ade80;
+    }
+    .btn-disconnect {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 11px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .btn-disconnect:hover { color: #f87171; background: rgba(239,68,68,0.1); }
+    .hidden { display: none !important; }
+
     .footer {
       padding: 12px 20px;
       text-align: center;
@@ -126,6 +174,25 @@
   <div id="statusBanner" class="status-banner idle">
     <span id="statusDot" class="status-dot idle"></span>
     <span id="statusText">Checking status...</span>
+  </div>
+
+  <!-- Login / Account Section -->
+  <div id="loginSection" class="login-section">
+    <div class="section-title">Connect Account</div>
+    <form id="loginForm" class="login-form">
+      <input type="email" id="loginEmail" placeholder="Kampus email" required />
+      <input type="password" id="loginPassword" placeholder="Password" required />
+      <div id="loginError" class="login-error"></div>
+      <button type="submit" class="btn btn-primary" id="loginBtn">🔗 Connect</button>
+    </form>
+  </div>
+
+  <div id="accountSection" class="login-section hidden">
+    <div class="section-title">Connected Account</div>
+    <div class="account-info">
+      <span class="account-email" id="accountEmail">—</span>
+      <button class="btn-disconnect" id="disconnectBtn">Disconnect</button>
+    </div>
   </div>
 
   <div class="section">

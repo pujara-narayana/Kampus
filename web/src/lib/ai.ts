@@ -1,43 +1,73 @@
+import OpenAI from 'openai';
+
+// Initialize OpenAI client once. Will be undefined if no key is provided.
+const getOpenAIClient = () => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  console.log("[ai.ts] check OPENAI_API_KEY length:", apiKey ? apiKey.length : 0);
+  if (!apiKey) return null;
+  return new OpenAI({ apiKey });
+};
+
+// ---------------------------------------------------------------------------
+// 1. Event Relevance & Free Food Detection
+// ---------------------------------------------------------------------------
+
 const FOOD_KEYWORDS = [
-  "free food",
-  "free pizza",
-  "free lunch",
-  "free dinner",
-  "free breakfast",
-  "lunch provided",
-  "dinner provided",
-  "refreshments",
-  "food will be served",
-  "complimentary food",
-  "free snacks",
-  "pizza",
-  "catering",
-  "free meal",
-  "food and drinks",
-  "snacks provided",
-  "free tacos",
-  "free BBQ",
-  "come for the food",
-  "treats",
-  "donuts",
-  "cookies provided",
+  "free food", "free pizza", "free lunch", "free dinner", "free breakfast",
+  "lunch provided", "dinner provided", "refreshments", "food will be served",
+  "complimentary food", "free snacks", "pizza", "catering", "free meal",
+  "food and drinks", "snacks provided", "free tacos", "free bbq",
+  "come for the food", "treats", "donuts", "cookies provided"
 ];
 
-export function detectFreeFood(
-  title: string,
-  description: string
-): { hasFreeFood: boolean; foodDetails: string | null } {
-  const text = `${title} ${description}`.toLowerCase();
-  const matches = FOOD_KEYWORDS.filter((kw) => text.includes(kw));
-
+// Fallback logic if OpenAI API is disabled
+function fallbackDetectFreeFood(text: string) {
+  const matches = FOOD_KEYWORDS.filter((kw) => text.toLowerCase().includes(kw));
   if (matches.length > 0) {
-    return {
-      hasFreeFood: true,
-      foodDetails: matches.join(", "),
-    };
+    return { hasFreeFood: true, foodDetails: matches.join(", ") };
   }
   return { hasFreeFood: false, foodDetails: null };
 }
+
+export async function detectFreeFood(
+  title: string,
+  description: string
+): Promise<{ hasFreeFood: boolean; foodDetails: string | null }> {
+  const client = getOpenAIClient();
+  const rawText = `${title}\n${description}`;
+
+  if (!client) {
+    return fallbackDetectFreeFood(rawText);
+  }
+
+  try {
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "You are an assistant that analyzes university campus events. Look specifically for any mention of free food, meals, snacks, or refreshments being provided. Respond ONLY with a valid JSON object in the exact format: {\"hasFreeFood\": boolean, \"foodDetails\": \"string or null\"}. If food is provided, describe it briefly (e.g. \"Pizza and soda\")."
+        },
+        { role: "user", content: `Event title: ${title}\nDescription: ${description}` }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.1,
+    });
+
+    const output = JSON.parse(response.choices[0].message.content || '{}');
+    return {
+      hasFreeFood: output.hasFreeFood || false,
+      foodDetails: output.foodDetails || null,
+    };
+  } catch (err: any) {
+    console.error("OpenAI detecting free food failed:", err.message || err);
+    return fallbackDetectFreeFood(rawText);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 2. Assignment Time Estimation
+// ---------------------------------------------------------------------------
 
 export async function estimateAssignmentTime(params: {
   name: string;
@@ -48,55 +78,59 @@ export async function estimateAssignmentTime(params: {
   avgHoursSimilar?: number;
   currentScore?: number;
 }): Promise<{ hours: number; reasoning: string }> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const client = getOpenAIClient();
 
-  if (!apiKey) {
+  if (!client) {
     // Fallback heuristic when no API key
     let hours = 2;
     if (params.pointsPossible > 100) hours = 5;
     else if (params.pointsPossible > 50) hours = 3;
-    if (
-      params.submissionTypes.some((t) =>
-        ["online_upload", "external_tool"].includes(t)
-      )
-    )
-      hours += 1;
+    if (params.submissionTypes.some((t) => ["online_upload", "external_tool"].includes(t))) hours += 1;
     if (params.description && params.description.length > 1000) hours += 1;
     return {
       hours,
-      reasoning: `Estimated based on ${params.pointsPossible} points and submission type`,
+      reasoning: `Estimated based on ${params.pointsPossible} points and submission type.`,
     };
   }
 
   try {
-    const Anthropic = (await import("@anthropic-ai/sdk")).default;
-    const client = new Anthropic({ apiKey });
-
-    const prompt = `You are an academic advisor. Given the following assignment, estimate how many hours a typical student should spend on it. Consider difficulty, scope, and the student's past performance.
+    const prompt = `You are an academic advisor analyzing a student's assignment.
+Estimate the number of study hours a typical student should dedicate to complete this successfully. 
+Consider difficulty, type, and length of description.
 
 Assignment: ${params.name}
 Course: ${params.courseName}
-Description: ${(params.description || "").slice(0, 500)}
+Description: ${(params.description || "").slice(0, 800)}
 Points: ${params.pointsPossible}
 Type: ${params.submissionTypes.join(", ")}
 User's past average for this course: ${params.avgHoursSimilar || "unknown"}
-User's current grade: ${params.currentScore || "unknown"}%
+User's current course grade: ${params.currentScore || "unknown"}%
 
-Respond with ONLY a JSON object: {"hours": <number>, "reasoning": "<1 sentence>"}`;
+Respond with ONLY a JSON object exactly matching this schema:
+{"hours": <number>, "reasoning": "<A 1-sentence personalized strategic study tip for this assignment>"}
+Avoid markdown formatting outside the JSON block.`;
 
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 200,
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
     });
 
-    const text =
-      response.content[0].type === "text" ? response.content[0].text : "";
-    return JSON.parse(text);
-  } catch {
+    const parsed = JSON.parse(response.choices[0].message.content || '{}');
+    return {
+      hours: parsed.hours || 3,
+      reasoning: parsed.reasoning || "Default estimate based on assignment type."
+    };
+  } catch (err) {
+    console.error("OpenAI assignment estimation failed:", err);
     return { hours: 3, reasoning: "Default estimate" };
   }
 }
+
+// ---------------------------------------------------------------------------
+// 3. Weekly Summary Generation
+// ---------------------------------------------------------------------------
 
 export async function generateWeeklySummary(data: {
   assignmentsDue: number;
@@ -109,42 +143,40 @@ export async function generateWeeklySummary(data: {
   topCourse?: string;
   topCourseHours?: number;
 }): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const client = getOpenAIClient();
 
   const fallback = `This week you completed ${data.assignmentsCompleted} of ${data.assignmentsDue} assignments. You started assignments an average of ${data.avgDaysBeforeDue.toFixed(1)} days before the deadline. You attended ${data.eventsAttended} events${data.freeFoodEvents > 0 ? `, ${data.freeFoodEvents} of which had free food` : ""}. Keep it up!`;
 
-  if (!apiKey) return fallback;
+  if (!client) return fallback;
 
   try {
-    const Anthropic = (await import("@anthropic-ai/sdk")).default;
-    const client = new Anthropic({ apiKey });
-
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 300,
-      messages: [
-        {
-          role: "user",
-          content: `Generate a brief, encouraging weekly summary for a college student. Use these stats:
+    const prompt = `Generate a brief, encouraging weekly summary for a college student based on these stats:
 - Completed ${data.assignmentsCompleted} of ${data.assignmentsDue} assignments
 - Started assignments avg ${data.avgDaysBeforeDue.toFixed(1)} days before deadline
-- ${data.totalStudyHours} total study hours
+- ${data.totalStudyHours} total study hours this week
 - Attended ${data.sessionsAttended} study sessions
-- Attended ${data.eventsAttended} events (${data.freeFoodEvents} had free food)
-${data.topCourse ? `- Most time on: ${data.topCourse} (${data.topCourseHours}h)` : ""}
+- Attended ${data.eventsAttended} social events (${data.freeFoodEvents} had free food)
+${data.topCourse ? `- Most time spent on: ${data.topCourse} (${data.topCourseHours}h)` : ""}
 
-Keep it 2-3 sentences, friendly, with one emoji at the end.`,
-        },
-      ],
+Keep it 2-3 sentences max, personalized, upbeat, and end with a single emoji.`;
+
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_tokens: 150,
     });
 
-    const text =
-      response.content[0].type === "text" ? response.content[0].text : "";
-    return text || fallback;
-  } catch {
+    return response.choices[0].message.content || fallback;
+  } catch (err) {
+    console.error("OpenAI summary generation failed:", err);
     return fallback;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Utility: Geographic Distance (Independent of AI)
+// ---------------------------------------------------------------------------
 
 export function calculateWalkingDistance(
   lat1: number,
@@ -158,9 +190,9 @@ export function calculateWalkingDistance(
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) *
+    Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const distance = R * c;
   // Walking speed: 5 km/h = 83.3 m/min

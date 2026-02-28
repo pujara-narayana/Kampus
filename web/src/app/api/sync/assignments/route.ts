@@ -82,7 +82,10 @@ export async function POST(req: NextRequest) {
 
           await prisma.assignment.update({
             where: { id: upserted.id },
-            data: { estimatedHours: estimate.hours },
+            data: {
+              estimatedHours: estimate.hours,
+              aiStudyTip: estimate.reasoning
+            },
           });
         } catch {
           // Non-critical: skip estimation on failure

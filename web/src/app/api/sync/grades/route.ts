@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       await prisma.course.update({
         where: { id: course.id },
         data: {
-          currentGrade: g.currentGrade || null,
+          currentGrade: g.currentGrade ? String(g.currentGrade).substring(0, 5) : null,
           currentScore: g.currentScore ?? null,
         },
       });

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
-import { detectFreeFood } from "@/lib/ai";
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,8 +21,6 @@ export async function POST(req: NextRequest) {
     const results = [];
 
     for (const e of events) {
-      const foodResult = detectFreeFood(e.title || "", e.description || "");
-
       const event = await prisma.event.upsert({
         where: {
           source_sourceId: {
@@ -41,8 +38,8 @@ export async function POST(req: NextRequest) {
           address: e.address || null,
           lat: e.lat ?? null,
           lng: e.lng ?? null,
-          hasFreeFood: foodResult.hasFreeFood,
-          foodDetails: foodResult.foodDetails,
+          hasFreeFood: e.hasFreeFood || false,
+          foodDetails: e.foodDetails || null,
           eventType: e.eventType || null,
           orgName: e.orgName || null,
           eventUrl: e.eventUrl || null,
@@ -60,8 +57,8 @@ export async function POST(req: NextRequest) {
           address: e.address || null,
           lat: e.lat ?? null,
           lng: e.lng ?? null,
-          hasFreeFood: foodResult.hasFreeFood,
-          foodDetails: foodResult.foodDetails,
+          hasFreeFood: e.hasFreeFood || false,
+          foodDetails: e.foodDetails || null,
           eventType: e.eventType || null,
           orgName: e.orgName || null,
           eventUrl: e.eventUrl || null,
