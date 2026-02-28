@@ -8,12 +8,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: "🏠" },
-  { href: "/calendar", label: "Calendar", icon: "📅" },
-  { href: "/events", label: "Events", icon: "🎉" },
-  { href: "/sessions", label: "Study Sessions", icon: "📚" },
-  { href: "/insights", label: "Insights", icon: "📊" },
-  { href: "/social", label: "Social", icon: "👥" },
+  { href: "/dashboard", label: "Dashboard", icon: "🏠" },
+  { href: "/dashboard/calendar", label: "Calendar", icon: "📅" },
+  { href: "/dashboard/events", label: "Events", icon: "🎉" },
+  { href: "/dashboard/sessions", label: "Study Sessions", icon: "📚" },
+  { href: "/dashboard/insights", label: "Insights", icon: "📊" },
+  { href: "/dashboard/social", label: "Social", icon: "👥" },
 ];
 
 export function Sidebar() {
@@ -33,16 +33,15 @@ export function Sidebar() {
         {navItems.map((item) => {
           const isActive =
             pathname === item.href ||
-            (item.href !== "/" && pathname.startsWith(item.href));
+            (item.href !== "/dashboard" && pathname.startsWith(item.href));
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              }`}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isActive
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                }`}
             >
               <span>{item.icon}</span>
               {item.label}

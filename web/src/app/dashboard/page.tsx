@@ -6,55 +6,74 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api-client";
 import Link from "next/link";
+import { toast } from "sonner";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 interface DashboardData {
-  upcomingAssignments: { id: string; name: string; courseName: string; dueAt: string; estimatedHours: number | null; hasSubmitted: boolean }[];
-  upcomingEvents: { id: string; title: string; startTime: string; hasFreeFood: boolean; building: string | null }[];
-  activeSessions: { id: string; title: string; participantCount: number; building: string | null; startTime: string }[];
-  notifications: { id: string; title: string; type: string; read: boolean }[];
+  upcomingAssignments: any[];
+  upcomingEvents: any[];
+  activeSessions: any[];
+  notifications: any[];
 }
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
+
+  async function loadData() {
+    try {
+      const [assignmentsRes, eventsRes, sessionsRes, notifRes] =
+        await Promise.allSettled([
+          api.getUpcomingAssignments(),
+          api.getEvents(),
+          api.getSessions(),
+          api.getNotifications(),
+        ]);
+
+      setData({
+        upcomingAssignments:
+          assignmentsRes.status === "fulfilled"
+            ? (assignmentsRes.value.assignments ?? [])
+            : [],
+        upcomingEvents:
+          eventsRes.status === "fulfilled"
+            ? (eventsRes.value.events ?? [])
+            : [],
+        activeSessions:
+          sessionsRes.status === "fulfilled"
+            ? (sessionsRes.value.sessions ?? [])
+            : [],
+        notifications:
+          notifRes.status === "fulfilled"
+            ? (notifRes.value.notifications ?? [])
+            : [],
+      });
+    } catch {
+      // Silently handle - show empty state
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [assignmentsRes, eventsRes, sessionsRes, notifRes] =
-          await Promise.allSettled([
-            api.getUpcomingAssignments(),
-            api.getEvents(),
-            api.getSessions(),
-            api.getNotifications(),
-          ]);
-
-        setData({
-          upcomingAssignments:
-            assignmentsRes.status === "fulfilled"
-              ? (assignmentsRes.value.assignments as DashboardData["upcomingAssignments"])
-              : [],
-          upcomingEvents:
-            eventsRes.status === "fulfilled"
-              ? (eventsRes.value.events as DashboardData["upcomingEvents"])
-              : [],
-          activeSessions:
-            sessionsRes.status === "fulfilled"
-              ? (sessionsRes.value.sessions as DashboardData["activeSessions"])
-              : [],
-          notifications:
-            notifRes.status === "fulfilled"
-              ? (notifRes.value.notifications as DashboardData["notifications"])
-              : [],
-        });
-      } catch {
-        // Silently handle - show empty state
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
+    loadData();
   }, []);
+
+  async function handleSeed() {
+    setSeeding(true);
+    try {
+      await api.seed();
+      toast.success("Demo data seeded! Refreshing...");
+      setLoading(true);
+      await loadData();
+    } catch {
+      toast.error("Failed to seed demo data");
+    } finally {
+      setSeeding(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -67,16 +86,29 @@ export default function DashboardPage() {
   const assignments = data?.upcomingAssignments || [];
   const events = data?.upcomingEvents || [];
   const sessions = data?.activeSessions || [];
-  const unreadNotifs = (data?.notifications || []).filter((n) => !n.read);
-  const freeFoodEvents = events.filter((e) => e.hasFreeFood);
+  const unreadNotifs = (data?.notifications || []).filter((n: any) => !n.read);
+  const freeFoodEvents = events.filter((e: any) => e.hasFreeFood);
+
+  const isEmpty =
+    assignments.length === 0 &&
+    events.length === 0 &&
+    sessions.length === 0 &&
+    unreadNotifs.length === 0;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Your campus life, unified. Never miss free food again.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Your campus life, unified. Never miss free food again.
+          </p>
+        </div>
+        {isEmpty && (
+          <Button onClick={handleSeed} disabled={seeding} variant="outline">
+            {seeding ? "Seeding..." : "🌱 Load Demo Data"}
+          </Button>
+        )}
       </div>
 
       {/* Stats Row */}
@@ -111,7 +143,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {freeFoodEvents.length > 0 ? `${freeFoodEvents.length}` : "0"}
+              {freeFoodEvents.length > 0 ? `🍕 ${freeFoodEvents.length}` : "0"}
             </div>
             <p className="text-xs text-muted-foreground">
               {freeFoodEvents.length > 0 ? "events with food!" : "none right now"}
@@ -140,13 +172,13 @@ export default function DashboardPage() {
               <h3 className="font-semibold text-orange-700 dark:text-orange-300">
                 FREE FOOD ALERT!
               </h3>
-              {freeFoodEvents.map((e) => (
+              {freeFoodEvents.map((e: any) => (
                 <p key={e.id} className="text-sm">
                   {e.title} at {e.building || "Campus"}
                 </p>
               ))}
             </div>
-            <Link href="/events?filter=free-food">
+            <Link href="/dashboard/events?filter=free-food">
               <Button variant="outline" className="border-orange-400">
                 View All
               </Button>
@@ -161,7 +193,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Upcoming Assignments</span>
-              <Link href="/calendar">
+              <Link href="/dashboard/calendar">
                 <Button variant="ghost" size="sm">
                   View All
                 </Button>
@@ -175,7 +207,7 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div className="space-y-3">
-                {assignments.slice(0, 5).map((a) => (
+                {assignments.slice(0, 5).map((a: any) => (
                   <div
                     key={a.id}
                     className="flex items-center justify-between rounded-lg border p-3"
@@ -183,7 +215,7 @@ export default function DashboardPage() {
                     <div>
                       <p className="font-medium text-sm">{a.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {a.courseName}
+                        {a.course?.code || a.course?.name || a.courseName || ""}
                       </p>
                     </div>
                     <div className="text-right">
@@ -231,7 +263,7 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div className="space-y-3">
-                {unreadNotifs.slice(0, 5).map((n) => (
+                {unreadNotifs.slice(0, 5).map((n: any) => (
                   <div
                     key={n.id}
                     className="flex items-start gap-3 rounded-lg border p-3"
@@ -243,9 +275,18 @@ export default function DashboardPage() {
                           ? "📝"
                           : n.type === "session_invite"
                             ? "📚"
-                            : "🔔"}
+                            : n.type === "event_recommendation"
+                              ? "🎯"
+                              : "🔔"}
                     </span>
-                    <p className="text-sm">{n.title}</p>
+                    <div>
+                      <p className="text-sm font-medium">{n.title}</p>
+                      {n.body && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {n.body}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -257,8 +298,8 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span>Active Study Sessions</span>
-              <Link href="/sessions">
+              <span>Study Sessions</span>
+              <Link href="/dashboard/sessions">
                 <Button variant="ghost" size="sm">
                   View All
                 </Button>
@@ -268,11 +309,11 @@ export default function DashboardPage() {
           <CardContent>
             {sessions.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">
-                No active study sessions. Create one!
+                No study sessions. Create one!
               </p>
             ) : (
               <div className="space-y-3">
-                {sessions.slice(0, 3).map((s) => (
+                {sessions.slice(0, 3).map((s: any) => (
                   <div
                     key={s.id}
                     className="flex items-center justify-between rounded-lg border p-3"
@@ -280,10 +321,10 @@ export default function DashboardPage() {
                     <div>
                       <p className="font-medium text-sm">{s.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {s.building || "TBD"}
+                        {s.building || "TBD"} • {s.course?.code || ""}
                       </p>
                     </div>
-                    <Badge>{s.participantCount} joined</Badge>
+                    <Badge>{s._count?.participants ?? s.participantCount ?? 0} joined</Badge>
                   </div>
                 ))}
               </div>
@@ -296,7 +337,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Upcoming Events</span>
-              <Link href="/events">
+              <Link href="/dashboard/events">
                 <Button variant="ghost" size="sm">
                   View All
                 </Button>
@@ -310,7 +351,7 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div className="space-y-3">
-                {events.slice(0, 4).map((e) => (
+                {events.slice(0, 4).map((e: any) => (
                   <div
                     key={e.id}
                     className="flex items-center justify-between rounded-lg border p-3"
@@ -320,7 +361,7 @@ export default function DashboardPage() {
                       <div>
                         <p className="font-medium text-sm">{e.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {e.building || "Campus"} -{" "}
+                          {e.building || "Campus"} —{" "}
                           {new Date(e.startTime).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",

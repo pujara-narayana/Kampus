@@ -5,14 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api-client";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 interface CalendarItem {
   id: string;
   title: string;
   start: string;
   end?: string;
   type: string;
-  color: string;
-  meta?: Record<string, unknown>;
 }
 
 const TYPE_COLORS: Record<string, { bg: string; text: string; label: string }> = {
@@ -31,6 +31,30 @@ function getFirstDayOfMonth(year: number, month: number) {
   return new Date(year, month, 1).getDay();
 }
 
+// Map recurring class schedule into actual dates for the current month view
+function generateClassDates(cls: any, year: number, month: number): CalendarItem[] {
+  const items: CalendarItem[] = [];
+  const dayMap: Record<string, number> = { M: 1, T: 2, W: 3, R: 4, F: 5 };
+  const days = (cls.days || "").split("").map((d: string) => dayMap[d]).filter(Boolean);
+  const daysInMonth = getDaysInMonth(year, month);
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day);
+    const dow = date.getDay();
+    if (days.includes(dow)) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      items.push({
+        id: `class-${cls.id}-${dateStr}`,
+        title: `${cls.courseCode || cls.courseTitle || "Class"} (${cls.startTime || ""})`,
+        start: `${dateStr}T${cls.startTime || "08:00"}:00`,
+        end: cls.endTime ? `${dateStr}T${cls.endTime}:00` : undefined,
+        type: "class",
+      });
+    }
+  }
+  return items;
+}
+
 export default function CalendarPage() {
   const [items, setItems] = useState<CalendarItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +71,52 @@ export default function CalendarPage() {
     async function load() {
       try {
         const res = await api.getCalendar();
-        setItems(res.events as unknown as CalendarItem[]);
+        const mapped: CalendarItem[] = [];
+
+        // Map classes (recurring schedule)
+        const classes = (res as any).classes || [];
+        for (const cls of classes) {
+          mapped.push(...generateClassDates(cls, year, month));
+        }
+
+        // Map assignments
+        const assignments = (res as any).assignments || [];
+        for (const a of assignments) {
+          if (a.dueAt) {
+            mapped.push({
+              id: `asgn-${a.id}`,
+              title: `${a.name} (${a.course?.code || ""})`,
+              start: a.dueAt,
+              type: "assignment",
+            });
+          }
+        }
+
+        // Map events
+        const events = (res as any).events || [];
+        for (const e of events) {
+          mapped.push({
+            id: `evt-${e.id}`,
+            title: e.title,
+            start: e.startTime,
+            end: e.endTime || undefined,
+            type: e.hasFreeFood ? "free_food" : "event",
+          });
+        }
+
+        // Map study sessions
+        const studySessions = (res as any).studySessions || [];
+        for (const s of studySessions) {
+          mapped.push({
+            id: `sess-${s.id}`,
+            title: `${s.title} (${s.course?.code || "Study"})`,
+            start: s.startTime,
+            end: s.endTime || undefined,
+            type: "study_session",
+          });
+        }
+
+        setItems(mapped);
       } catch {
         // Show empty calendar
       } finally {
@@ -55,7 +124,7 @@ export default function CalendarPage() {
       }
     }
     load();
-  }, []);
+  }, [year, month]);
 
   const getItemsForDate = (dateStr: string) => {
     return items.filter((item) => {

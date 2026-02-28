@@ -35,10 +35,22 @@ export default function SocialPage() {
           api.getFeed(),
           api.getConnections(),
         ]);
-        if (feedRes.status === "fulfilled")
-          setFeed(feedRes.value.items as unknown as FeedItem[]);
-        if (connRes.status === "fulfilled")
-          setConnections(connRes.value.connections as unknown as ConnectionItem[]);
+        if (feedRes.status === "fulfilled") {
+          // API returns { feedItems } or { items }
+          const raw = feedRes.value as Record<string, unknown>;
+          const items = (raw.feedItems || raw.items || []) as Record<string, unknown>[];
+          setFeed(items.map((item) => ({
+            id: item.id as string,
+            type: item.type as string,
+            data: (item.data || {}) as Record<string, string | number>,
+            createdAt: item.createdAt as string,
+            userName: (item as Record<string, unknown> & { user?: { displayName?: string } }).user?.displayName || "Student",
+          })));
+        }
+        if (connRes.status === "fulfilled") {
+          const raw = connRes.value as Record<string, unknown>;
+          setConnections((raw.connections || []) as unknown as ConnectionItem[]);
+        }
       } catch {
         // empty
       } finally {
