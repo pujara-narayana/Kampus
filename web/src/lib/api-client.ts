@@ -1,5 +1,21 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
+export interface SessionInvite {
+  participantId: string;
+  sessionId: string;
+  sessionTitle: string | null;
+  sessionDescription: string | null;
+  sessionBuilding: string | null;
+  sessionRoom: string | null;
+  sessionStartTime: string | null;
+  sessionStatus: string;
+  maxParticipants: number;
+  participantCount: number;
+  creator: { id: string; displayName: string | null; avatarUrl: string | null };
+  course: { name: string | null; code: string | null } | null;
+  invitedAt: string;
+}
+
 export interface ChatConversation {
   id: string;
   otherUser: { id: string; displayName: string | null; avatarUrl: string | null; email: string | null };
@@ -160,6 +176,12 @@ export const api = {
       `/api/sessions/${sessionId}/invite`,
       { method: "POST", body: JSON.stringify({ userIds }) }
     ),
+  getSessionInvites: () =>
+    fetchAPI<{ invites: SessionInvite[] }>("/api/sessions/invites"),
+  declineSessionInvite: (sessionId: string) =>
+    fetchAPI<{ success: boolean; message: string }>(`/api/sessions/${sessionId}/join`, {
+      method: "DELETE",
+    }),
 
   // Social
   getFeed: () => fetchAPI<{ items: Record<string, unknown>[] }>("/api/social/feed"),

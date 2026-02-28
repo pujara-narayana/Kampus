@@ -27,6 +27,9 @@ export async function GET(
             },
           },
         },
+        groupChat: {
+          select: { id: true },
+        },
       },
     });
 
@@ -37,23 +40,7 @@ export async function GET(
       );
     }
 
-    // Attach groupChat.id if the GroupChat model exists (optional: client may be from older schema)
-    const prismaWithGroupChat = prisma as typeof prisma & {
-      groupChat?: { findUnique: (args: { where: { sessionId: string } }) => Promise<{ id: string } | null> };
-    };
-    let groupChat: { id: string } | null = null;
-    if (prismaWithGroupChat.groupChat) {
-      groupChat = await prismaWithGroupChat.groupChat.findUnique({
-        where: { sessionId: id },
-      });
-    }
-
-    const sessionWithGroupChat = {
-      ...session,
-      groupChat: groupChat ? { id: groupChat.id } : null,
-    };
-
-    return NextResponse.json({ session: sessionWithGroupChat });
+    return NextResponse.json({ session });
   } catch (error) {
     console.error("Session detail error:", error);
     return NextResponse.json(

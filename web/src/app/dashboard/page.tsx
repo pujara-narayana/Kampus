@@ -77,6 +77,26 @@ export default function DashboardPage() {
     loadData();
   }, []);
 
+  async function handleAcceptSessionInvite(sessionId: string) {
+    try {
+      await api.joinSession(sessionId);
+      toast.success("Joined session! Check the Group Chat in Messages.");
+      await loadData();
+    } catch {
+      toast.error("Failed to join session");
+    }
+  }
+
+  async function handleDeclineSessionInvite(sessionId: string) {
+    try {
+      await api.declineSessionInvite(sessionId);
+      toast.success("Invite declined");
+      await loadData();
+    } catch {
+      toast.error("Failed to decline invite");
+    }
+  }
+
   async function handleSeed() {
     setSeeding(true);
     try {
@@ -368,12 +388,31 @@ export default function DashboardPage() {
                               ? "🎯"
                               : "🔔"}
                     </span>
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-medium">{n.title}</p>
                       {n.body && (
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {n.body}
                         </p>
+                      )}
+                      {n.type === "session_invite" && n.data?.sessionId && (
+                        <div className="flex gap-2 mt-2">
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => handleAcceptSessionInvite(n.data.sessionId as string)}
+                          >
+                            Accept
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() => handleDeclineSessionInvite(n.data.sessionId as string)}
+                          >
+                            Decline
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>

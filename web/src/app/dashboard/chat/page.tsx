@@ -2,12 +2,12 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
   api,
   type ChatConversation,
@@ -16,8 +16,10 @@ import {
   type GroupChatSummary,
   type GroupChatDetail,
   type GroupChatMemberInfo,
+  type SessionInvite,
 } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
+import { toast } from "sonner";
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -33,23 +35,27 @@ export default function ChatPage() {
 
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [groupChats, setGroupChats] = useState<GroupChatSummary[]>([]);
+  const [invites, setInvites] = useState<SessionInvite[]>([]);
   const [loadingConvos, setLoadingConvos] = useState(true);
   const [activeView, setActiveView] = useState<ActiveView | null>(null);
   const [loadingChat, setLoadingChat] = useState(false);
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
+  const [respondingInvite, setRespondingInvite] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadConversations = useCallback(async () => {
     try {
-      const [dmRes, gcRes] = await Promise.allSettled([
+      const [dmRes, gcRes, inviteRes] = await Promise.allSettled([
         api.getChatConversations(),
         api.getGroupChats(),
+        api.getSessionInvites(),
       ]);
       if (dmRes.status === "fulfilled") setConversations(dmRes.value.conversations || []);
       if (gcRes.status === "fulfilled") setGroupChats(gcRes.value.groupChats || []);
+      if (inviteRes.status === "fulfilled") setInvites(inviteRes.value.invites || []);
     } catch {
       // keep existing state
     } finally {
@@ -99,7 +105,7 @@ export default function ChatPage() {
     }
   }, [withUserId, user?.id, openDM]);
 
-  // Open from ?session=sessionId
+  // Open from ?session=sessionId — wait until group chats are loaded
   useEffect(() => {
     if (sessionId && groupChats.length > 0) {
       const gc = groupChats.find((g) => g.sessionId === sessionId);
@@ -112,13 +118,12 @@ export default function ChatPage() {
     loadConversations();
   }, [loadConversations]);
 
-  // Polling
+  // Polling for active chat
   useEffect(() => {
     if (pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
     }
-
     if (!activeView) return;
 
     const poll = async () => {
@@ -127,7 +132,9 @@ export default function ChatPage() {
           const otherId = activeView.data.conversation.otherUser.id;
           const res = await api.getChatWithUser(otherId);
           setActiveView((prev) =>
-            prev?.type === "dm" ? { type: "dm", data: { ...res, conversation: prev.data.conversation } } : prev
+            prev?.type === "dm"
+              ? { type: "dm", data: { ...res, conversation: prev.data.conversation } }
+              : prev
           );
         } else {
           const gcId = activeView.data.groupChat.id;
@@ -143,7 +150,15 @@ export default function ChatPage() {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [activeView?.type, activeView?.type === "dm" ? activeView.data.conversation.otherUser.id : activeView?.type === "group" ? activeView.data.groupChat.id : null]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    activeView?.type,
+    activeView?.type === "dm"
+      ? activeView.data.conversation.otherUser.id
+      : activeView?.type === "group"
+      ? activeView.data.groupChat.id
+      : null,
+  ]);
 
   const sendMessage = async () => {
     const text = messageText.trim();
@@ -171,7 +186,7 @@ export default function ChatPage() {
       setMessageText("");
       setTimeout(() => scrollRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     } catch {
-      // could toast error
+      toast.error("Failed to send message");
     } finally {
       setSending(false);
     }
@@ -181,40 +196,127 @@ export default function ChatPage() {
     if (activeView?.type !== "group") return;
     try {
       await api.removeGroupChatMember(activeView.data.groupChat.id, member.userId);
-      // Refresh the group chat
       const res = await api.getGroupChat(activeView.data.groupChat.id);
       setActiveView({ type: "group", data: res });
     } catch {
-      // could toast error
+      toast.error("Failed to remove member");
     }
   };
 
-  const messages = activeView
-    ? activeView.type === "dm"
-      ? activeView.data.messages
-      : activeView.data.messages
-    : [];
+  const handleAcceptInvite = async (invite: SessionInvite) => {
+    setRespondingInvite(invite.sessionId);
+    try {
+      await api.joinSession(invite.sessionId);
+      toast.success(`Joined "${invite.sessionTitle || "session"}"`);
+      await loadConversations();
+      // Auto-open the group chat
+      const updatedGcs = await api.getGroupChats();
+      const gc = updatedGcs.groupChats.find((g) => g.sessionId === invite.sessionId);
+      if (gc) openGroupChat(gc.id);
+    } catch {
+      toast.error("Failed to join session");
+    } finally {
+      setRespondingInvite(null);
+    }
+  };
 
+  const handleDeclineInvite = async (invite: SessionInvite) => {
+    setRespondingInvite(invite.sessionId);
+    try {
+      await api.declineSessionInvite(invite.sessionId);
+      toast.success("Invite declined");
+      await loadConversations();
+    } catch {
+      toast.error("Failed to decline invite");
+    } finally {
+      setRespondingInvite(null);
+    }
+  };
+
+  const messages = activeView ? activeView.data.messages : [];
   const isAdmin =
     activeView?.type === "group" &&
     activeView.data.groupChat.creatorId === user?.id;
 
   return (
     <div className="flex h-[calc(100vh-3rem)] -m-6">
-      {/* Conversation list */}
+      {/* Sidebar */}
       <div className="w-72 border-r bg-muted/30 flex flex-col shrink-0">
         <div className="p-4 border-b">
           <h1 className="text-xl font-semibold">Messages</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            DMs and group chats
-          </p>
+          <p className="text-sm text-muted-foreground mt-0.5">DMs, group chats & invites</p>
         </div>
         <ScrollArea className="flex-1">
           {loadingConvos ? (
             <p className="p-4 text-sm text-muted-foreground">Loading...</p>
           ) : (
             <div className="p-2 space-y-1">
-              {/* Group Chats section */}
+              {/* Pending Session Invites */}
+              {invites.length > 0 && (
+                <>
+                  <p className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    Session Invites
+                    <Badge className="text-[10px] px-1.5 py-0 h-4">{invites.length}</Badge>
+                  </p>
+                  {invites.map((invite) => {
+                    const busy = respondingInvite === invite.sessionId;
+                    return (
+                      <div
+                        key={invite.sessionId}
+                        className="rounded-lg border bg-card p-3 mx-1 space-y-2"
+                      >
+                        <div className="flex items-start gap-2">
+                          <Avatar className="h-7 w-7 shrink-0 mt-0.5">
+                            <AvatarFallback className="text-xs">
+                              {invite.creator.displayName?.charAt(0)?.toUpperCase() || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium leading-snug truncate">
+                              {invite.sessionTitle || "Study Session"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              from {invite.creator.displayName || "Someone"}
+                            </p>
+                            {invite.sessionStartTime && (
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(invite.sessionStartTime).toLocaleDateString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="flex-1 h-7 text-xs"
+                            onClick={() => handleAcceptInvite(invite)}
+                            disabled={busy}
+                          >
+                            {busy ? "..." : "Accept"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 h-7 text-xs"
+                            onClick={() => handleDeclineInvite(invite)}
+                            disabled={busy}
+                          >
+                            Decline
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <Separator className="my-1" />
+                </>
+              )}
+
+              {/* Group Chats */}
               {groupChats.length > 0 && (
                 <>
                   <p className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -243,17 +345,24 @@ export default function ChatPage() {
                             <p className="font-medium text-sm truncate">
                               {gc.name || gc.sessionTitle || "Group Chat"}
                             </p>
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] px-1 py-0 shrink-0 ${isActive ? "border-primary-foreground/40" : ""}`}
+                            >
                               {gc.memberCount}
                             </Badge>
                           </div>
-                          {gc.lastMessage && (
+                          {gc.lastMessage ? (
                             <p
                               className={`text-xs truncate ${
                                 isActive ? "text-primary-foreground/80" : "text-muted-foreground"
                               }`}
                             >
                               {gc.lastMessage.senderName}: {gc.lastMessage.body}
+                            </p>
+                          ) : (
+                            <p className={`text-xs ${isActive ? "text-primary-foreground/60" : "text-muted-foreground/60"}`}>
+                              No messages yet
                             </p>
                           )}
                         </div>
@@ -263,10 +372,11 @@ export default function ChatPage() {
                 </>
               )}
 
-              {/* DMs section */}
+              {/* Direct Messages */}
               {conversations.length > 0 && (
                 <>
-                  <p className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-2">
+                  {groupChats.length > 0 && <Separator className="my-1" />}
+                  <p className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Direct Messages
                   </p>
                   {conversations.map((c) => {
@@ -307,7 +417,7 @@ export default function ChatPage() {
                 </>
               )}
 
-              {conversations.length === 0 && groupChats.length === 0 && (
+              {conversations.length === 0 && groupChats.length === 0 && invites.length === 0 && (
                 <p className="p-4 text-sm text-muted-foreground">
                   No conversations yet. Connect with someone on Social or join a study session.
                 </p>
@@ -317,7 +427,7 @@ export default function ChatPage() {
         </ScrollArea>
       </div>
 
-      {/* Active chat */}
+      {/* Active chat panel */}
       <div className="flex-1 flex flex-col min-w-0 bg-background">
         {!activeView ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
@@ -327,7 +437,7 @@ export default function ChatPage() {
               <div className="text-center max-w-sm">
                 <p className="text-lg font-medium">Select a conversation</p>
                 <p className="text-sm mt-1">
-                  Choose a chat from the list or open one from Sessions or Social.
+                  Choose a chat from the list, or accept a session invite to open the group chat.
                 </p>
               </div>
             )}
@@ -378,7 +488,7 @@ export default function ChatPage() {
             </div>
 
             <div className="flex flex-1 min-h-0">
-              {/* Messages area */}
+              {/* Messages */}
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-3">
                   {messages.map((m) => {
@@ -390,9 +500,7 @@ export default function ChatPage() {
                       >
                         <div
                           className={`max-w-[75%] rounded-lg px-3 py-2 ${
-                            isMe
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted"
+                            isMe ? "bg-primary text-primary-foreground" : "bg-muted"
                           }`}
                         >
                           {!isMe && (
@@ -416,7 +524,7 @@ export default function ChatPage() {
                 </div>
               </ScrollArea>
 
-              {/* Members sidebar (group chat only) */}
+              {/* Members sidebar */}
               {activeView.type === "group" && showMembers && (
                 <div className="w-56 border-l bg-muted/20 p-3 overflow-y-auto shrink-0">
                   <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
@@ -455,7 +563,7 @@ export default function ChatPage() {
               )}
             </div>
 
-            {/* Input */}
+            {/* Message input */}
             <div className="p-4 border-t shrink-0 flex gap-2">
               <Input
                 placeholder="Type a message..."
