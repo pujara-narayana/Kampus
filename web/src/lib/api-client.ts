@@ -111,6 +111,10 @@ export const api = {
     fetchAPI<{ participant: Record<string, unknown> }>(`/api/sessions/${id}/join`, {
       method: "POST",
     }),
+  leaveSession: (id: string) =>
+    fetchAPI<{ success: boolean; message: string }>(`/api/sessions/${id}/join`, {
+      method: "DELETE",
+    }),
   inviteToSession: (sessionId: string, userIds: string[]) =>
     fetchAPI<{ invited: number; skipped: number; message: string }>(
       `/api/sessions/${sessionId}/invite`,

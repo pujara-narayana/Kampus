@@ -56,6 +56,7 @@ interface SessionParticipant {
 export default function SessionsPage() {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [showJoinedOnly, setShowJoinedOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -117,6 +118,19 @@ export default function SessionsPage() {
     }
   }
 
+  async function handleLeave(sessionId: string) {
+    try {
+      await api.leaveSession(sessionId);
+      toast.success("Left session");
+      loadSessions();
+      if (detailSessionId === sessionId) {
+        closeSessionDetail();
+      }
+    } catch {
+      toast.error("Failed to leave session");
+    }
+  }
+
   const openInvite = useCallback(
     async (session: Session) => {
       setInviteSessionId(session.id);
@@ -130,7 +144,7 @@ export default function SessionsPage() {
         ]);
         const people: InviteUser[] =
           peopleRes.status === "fulfilled"
-            ? ((peopleRes.value as { people?: InviteUser[] }).people || [])
+            ? (((peopleRes.value as { people?: unknown[] }).people as InviteUser[]) || [])
             : [];
         const connections =
           connRes.status === "fulfilled"
@@ -139,19 +153,19 @@ export default function SessionsPage() {
         const friends: InviteUser[] =
           myId
             ? connections
-                .filter((c: Record<string, unknown>) => (c.status as string) === "accepted")
-                .map((c: Record<string, unknown>) => {
-                  const requester = c.requester as Record<string, unknown> | undefined;
-                  const receiver = c.receiver as Record<string, unknown> | undefined;
-                  const requesterId = c.requesterId as string;
-                  const other = requesterId === myId ? receiver : requester;
-                  return {
-                    id: other?.id as string,
-                    displayName: (other?.displayName as string | null) ?? null,
-                    avatarUrl: (other?.avatarUrl as string | null) ?? null,
-                  } as InviteUser;
-                })
-                .filter((u) => u.id)
+              .filter((c: Record<string, unknown>) => (c.status as string) === "accepted")
+              .map((c: Record<string, unknown>) => {
+                const requester = c.requester as Record<string, unknown> | undefined;
+                const receiver = c.receiver as Record<string, unknown> | undefined;
+                const requesterId = c.requesterId as string;
+                const other = requesterId === myId ? receiver : requester;
+                return {
+                  id: other?.id as string,
+                  displayName: (other?.displayName as string | null) ?? null,
+                  avatarUrl: (other?.avatarUrl as string | null) ?? null,
+                } as InviteUser;
+              })
+              .filter((u) => u.id)
             : [];
         const seen = new Set<string>();
         const merged: InviteUser[] = [];
@@ -223,104 +237,112 @@ export default function SessionsPage() {
             Find study buddies or create your own study group.
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>Create Session</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Study Session</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <Label htmlFor="title">Title</Label>
-                <Input
-                  id="title"
-                  name="title"
-                  placeholder="CSCE 361 Midterm Prep"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  placeholder="Let's review chapters 5-8 together..."
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+        <div className="flex gap-2">
+          <Button
+            variant={showJoinedOnly ? "default" : "outline"}
+            onClick={() => setShowJoinedOnly(!showJoinedOnly)}
+          >
+            {showJoinedOnly ? "Showing Joined" : "Show Joined Only"}
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>Create Session</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create Study Session</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleCreate} className="space-y-4">
                 <div>
-                  <Label htmlFor="building">Building</Label>
+                  <Label htmlFor="title">Title</Label>
                   <Input
-                    id="building"
-                    name="building"
-                    placeholder="Love Library"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="room">Room</Label>
-                  <Input id="room" name="room" placeholder="2nd Floor" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="startTime">Start Time</Label>
-                  <Input
-                    id="startTime"
-                    name="startTime"
-                    type="datetime-local"
+                    id="title"
+                    name="title"
+                    placeholder="CSCE 361 Midterm Prep"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="endTime">End Time</Label>
-                  <Input
-                    id="endTime"
-                    name="endTime"
-                    type="datetime-local"
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    placeholder="Let's review chapters 5-8 together..."
                   />
                 </div>
-              </div>
-              <div>
-                <Label htmlFor="maxParticipants">Max Participants</Label>
-                <Input
-                  id="maxParticipants"
-                  name="maxParticipants"
-                  type="number"
-                  defaultValue="10"
-                  min="2"
-                  max="50"
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={creating}>
-                {creating ? "Creating..." : "Create Session"}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="building">Building</Label>
+                    <Input
+                      id="building"
+                      name="building"
+                      placeholder="Love Library"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="room">Room</Label>
+                    <Input id="room" name="room" placeholder="2nd Floor" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="startTime">Start Time</Label>
+                    <Input
+                      id="startTime"
+                      name="startTime"
+                      type="datetime-local"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="endTime">End Time</Label>
+                    <Input
+                      id="endTime"
+                      name="endTime"
+                      type="datetime-local"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="maxParticipants">Max Participants</Label>
+                  <Input
+                    id="maxParticipants"
+                    name="maxParticipants"
+                    type="number"
+                    defaultValue="10"
+                    min="2"
+                    max="50"
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={creating}>
+                  {creating ? "Creating..." : "Create Session"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {loading ? (
         <p className="text-center text-muted-foreground py-8">
           Loading sessions...
         </p>
-      ) : sessions.length === 0 ? (
+      ) : sessions.filter(s => !showJoinedOnly || s.hasJoined || s.isCreator).length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <span className="text-4xl">📚</span>
-            <h3 className="mt-4 font-semibold">No Study Sessions Yet</h3>
+            <h3 className="mt-4 font-semibold">No Sessions Found</h3>
             <p className="text-muted-foreground mt-2">
-              Be the first to create a study session for your courses!
+              {showJoinedOnly ? "You haven't joined any sessions yet." : "Be the first to create a study session for your courses!"}
             </p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {sessions.map((session) => (
+          {sessions.filter(s => !showJoinedOnly || s.hasJoined || s.isCreator).map((session) => (
             <Card
               key={session.id}
-              className="cursor-pointer transition-colors hover:bg-accent/50"
+              className="cursor-pointer transition-colors hover:bg-accent/50 flex flex-col"
               onClick={() => openSessionDetail(session.id)}
             >
               <CardHeader className="pb-2">
@@ -344,39 +366,41 @@ export default function SessionsPage() {
                   </p>
                 )}
               </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <span>📍</span>
-                  <span>
-                    {session.building || "TBD"}
-                    {session.room ? ` ${session.room}` : ""}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <span>🕐</span>
-                  <span>
-                    {new Date(session.startTime).toLocaleDateString()} at{" "}
-                    {new Date(session.startTime).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <span>👥</span>
-                  <span>
-                    {(session as any)._count?.participants ?? session.participantCount ?? 0}/{session.maxParticipants} joined
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Created by {(session as any).creator?.displayName || session.creatorName || "Unknown"}
-                </p>
-                {session.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">
-                    {session.description}
+              <CardContent className="space-y-2 flex-grow flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-sm mt-2">
+                    <span>📍</span>
+                    <span>
+                      {session.building || "TBD"}
+                      {session.room ? ` ${session.room}` : ""}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm mt-2">
+                    <span>🕐</span>
+                    <span>
+                      {new Date(session.startTime).toLocaleDateString()} at{" "}
+                      {new Date(session.startTime).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm mt-2">
+                    <span>👥</span>
+                    <span>
+                      {(session as any)._count?.participants ?? session.participantCount ?? 0}/{session.maxParticipants} joined
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Created by {(session as any).creator?.displayName || session.creatorName || "Unknown"}
                   </p>
-                )}
-                <div className="pt-2 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                  {session.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 mt-2">
+                      {session.description}
+                    </p>
+                  )}
+                </div>
+                <div className="pt-4 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                   {session.isCreator && (
                     <Button
                       size="sm"
@@ -389,7 +413,14 @@ export default function SessionsPage() {
                   {session.isCreator ? (
                     <Badge variant="outline">Your Session</Badge>
                   ) : session.hasJoined ? (
-                    <Badge>Joined</Badge>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleLeave(session.id)}
+                      className="w-full"
+                    >
+                      Leave Session
+                    </Button>
                   ) : ((session as any)._count?.participants ?? session.participantCount ?? 0) < session.maxParticipants ? (
                     <Button
                       size="sm"
@@ -419,36 +450,36 @@ export default function SessionsPage() {
           ) : detailSession ? (
             <div className="space-y-4">
               <div>
-                <h3 className="font-semibold text-lg">{detailSession.title as string}</h3>
-                {(detailSession.creator as Record<string, unknown>)?.displayName && (
+                <h3 className="font-semibold text-lg">{String(detailSession.title || "Session")}</h3>
+                {(detailSession.creator as any)?.displayName && (
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Created by {(detailSession.creator as Record<string, unknown>).displayName as string}
+                    Created by {String((detailSession.creator as any).displayName)}
                   </p>
                 )}
               </div>
-              {(detailSession.course as Record<string, unknown>) && (
+              {(detailSession.course as any) && (
                 <p className="text-sm">
                   <span className="text-muted-foreground">Course:</span>{" "}
-                  {(detailSession.course as Record<string, unknown>).code as string || (detailSession.course as Record<string, unknown>).name as string || "—"}
+                  {String((detailSession.course as any).code || (detailSession.course as any).name || "—")}
                 </p>
               )}
               {detailSession.description && (
-                <p className="text-sm text-muted-foreground">{detailSession.description as string}</p>
+                <p className="text-sm text-muted-foreground">{String(detailSession.description)}</p>
               )}
               <Separator />
               <div className="grid gap-2 text-sm">
                 <div className="flex items-center gap-2">
                   <span>📍</span>
-                  <span>{(detailSession.building as string) || "TBD"}{(detailSession.room as string) ? ` ${detailSession.room}` : ""}</span>
+                  <span>{detailSession.building ? String(detailSession.building) : "TBD"}{detailSession.room ? ` ${String(detailSession.room)}` : ""}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span>🕐</span>
                   <span>
                     {detailSession.startTime
                       ? new Date(detailSession.startTime as string).toLocaleString(undefined, {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })
                       : "—"}
                     {detailSession.endTime && (
                       <> – {new Date(detailSession.endTime as string).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>
@@ -458,7 +489,7 @@ export default function SessionsPage() {
                 <div className="flex items-center gap-2">
                   <span>👥</span>
                   <span>
-                    {(detailSession.participants as unknown[])?.length ?? 0} / {(detailSession.maxParticipants as number) ?? 10} participants
+                    {Array.isArray(detailSession.participants) ? detailSession.participants.length : 0} / {Number(detailSession.maxParticipants) || 10} participants
                   </span>
                 </div>
               </div>
@@ -502,8 +533,8 @@ export default function SessionsPage() {
                   </Button>
                 )}
                 {detailSession.creatorId !== user?.id &&
-                  !(detailSession.participants as unknown[])?.some((p: { userId: string }) => p.userId === user?.id) &&
-                  ((detailSession.participants as unknown[])?.length ?? 0) < (detailSession.maxParticipants as number) && (
+                  !(Array.isArray(detailSession.participants) && detailSession.participants.some((p: any) => p.userId === user?.id)) &&
+                  (Array.isArray(detailSession.participants) ? detailSession.participants.length : 0) < (Number(detailSession.maxParticipants) || 0) && (
                     <Button
                       size="sm"
                       onClick={() => {
@@ -514,8 +545,16 @@ export default function SessionsPage() {
                       Join session
                     </Button>
                   )}
-                {(detailSession.participants as unknown[])?.some((p: { userId: string }) => p.userId === user?.id) && detailSession.creatorId !== user?.id && (
-                  <Badge>You joined</Badge>
+                {(Array.isArray(detailSession.participants) && detailSession.participants.some((p: any) => p.userId === user?.id)) && detailSession.creatorId !== user?.id && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => {
+                      handleLeave(detailSessionId!);
+                    }}
+                  >
+                    Leave Session
+                  </Button>
                 )}
               </div>
             </div>

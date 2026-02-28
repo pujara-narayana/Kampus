@@ -51,11 +51,22 @@ export async function GET(req: NextRequest) {
         creator: { select: { id: true, displayName: true, avatarUrl: true } },
         course: { select: { name: true, code: true } },
         _count: { select: { participants: true } },
+        participants: {
+          where: { userId: user.id },
+          select: { status: true }
+        }
       },
       orderBy: { startTime: "asc" },
     });
 
-    return NextResponse.json({ sessions });
+    const mappedSessions = sessions.map(s => ({
+      ...s,
+      isCreator: s.creatorId === user.id,
+      hasJoined: s.participants.some(p => p.status === "accepted"),
+      participantCount: s._count.participants,
+    }));
+
+    return NextResponse.json({ sessions: mappedSessions });
   } catch (error) {
     console.error("Sessions list error:", error);
     return NextResponse.json(

@@ -58,7 +58,7 @@ export async function POST(
           data: { status: "accepted", respondedAt: new Date() },
         });
       }
-      return NextResponse.json({ message: "Already joined" });
+      return NextResponse.json({ message: "Already joined", participant: existing }, { status: 200 });
     }
 
     const participant = await prisma.sessionParticipant.create({
@@ -86,6 +86,50 @@ export async function POST(
     return NextResponse.json({ participant }, { status: 201 });
   } catch (error) {
     console.error("Join session error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const existing = await prisma.sessionParticipant.findUnique({
+      where: {
+        sessionId_userId: {
+          sessionId: id,
+          userId: user.id,
+        },
+      },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ message: "Not joined" });
+    }
+
+    if (existing.status === "declined") {
+      return NextResponse.json({ message: "Already left" });
+    }
+
+    await prisma.sessionParticipant.update({
+      where: { id: existing.id },
+      data: { status: "declined", respondedAt: new Date() },
+    });
+
+    return NextResponse.json({ success: true, message: "Left session" });
+  } catch (error) {
+    console.error("Leave session error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
