@@ -77,6 +77,7 @@ model Assignment {
   score           Decimal?  @db.Decimal(8, 2)
   submittedAt     DateTime? @map("submitted_at")
   estimatedHours  Decimal?  @map("estimated_hours") @db.Decimal(4, 1)
+  aiStudyTip      String?   @map("ai_study_tip")
   actualHours     Decimal?  @map("actual_hours") @db.Decimal(4, 1)
   htmlUrl         String?   @map("html_url")
   syncedAt        DateTime  @default(now()) @map("synced_at")

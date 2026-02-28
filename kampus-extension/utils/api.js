@@ -131,7 +131,7 @@ async function syncCourses(courses) {
 async function syncSchedule(schedule) {
   return apiRequest('/api/sync/schedule', {
     method: 'POST',
-    body: { schedule },
+    body: { classes: schedule },
   });
 }
 

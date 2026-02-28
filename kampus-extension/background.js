@@ -55,8 +55,8 @@ chrome.runtime.onStartup.addListener(() => {
 });
 
 function setupAlarms() {
-  chrome.alarms.create(ALARM_CANVAS, { delayInMinutes: 1, periodInMinutes: 30 });
-  chrome.alarms.create(ALARM_MYRED, { delayInMinutes: 5, periodInMinutes: 1440 });
+  chrome.alarms.create(ALARM_CANVAS, { delayInMinutes: 1, periodInMinutes: 60 });
+  chrome.alarms.create(ALARM_MYRED, { delayInMinutes: 5, periodInMinutes: 60 });
   chrome.alarms.create(ALARM_NVOLVEU, { delayInMinutes: 2, periodInMinutes: 120 });
   chrome.alarms.create(ALARM_GRADES, { delayInMinutes: 10, periodInMinutes: 360 });
 }
@@ -82,9 +82,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       await runGradesSync();
       break;
     case ALARM_MYRED:
-      // MyRed sync is handled primarily by the content script.
-      // The alarm serves as a reminder to nudge the user if stale.
-      await checkMyRedStaleness();
+      // Autonomously pop open a background tab to MyRed to scrape
+      await runMyRedScraper();
       break;
     case ALARM_NVOLVEU:
       await runNvolveUSync();
@@ -111,6 +110,12 @@ async function handleMessage(message, sender) {
     // Content script signals: Canvas session is active
     case 'CANVAS_SESSION_ACTIVE':
       console.log('[Kampus] Canvas session detected — triggering sync.');
+
+      // Close the background tab if it was opened by our scraper
+      if (sender && sender.tab && sender.tab.id && sender.tab.pinned) {
+        chrome.tabs.remove(sender.tab.id).catch(() => { });
+      }
+
       await runCanvasSync();
       return { success: true };
 
@@ -118,14 +123,43 @@ async function handleMessage(message, sender) {
     case 'SCHEDULE_SCRAPED':
       console.log(`[Kampus] Received ${message.data.length} schedule entries from MyRed.`);
       await saveLastSync('myred');
-      const schedResult = await syncSchedule(message.data);
+      // Content script sends camelCase keys (course_code, course_title, etc.)
+      // Normalize to match backend expectations
+      const normalizedSchedule = message.data.map(c => ({
+        courseCode: c.course_code || c.courseCode || '',
+        courseTitle: c.course_title || c.courseTitle || '',
+        days: c.days || '',
+        startTime: c.start_time || c.startTime || null,
+        endTime: c.end_time || c.endTime || null,
+        building: c.building || '',
+        room: c.room || '',
+        instructor: c.instructor || '',
+      }));
+      const schedResult = await syncSchedule(normalizedSchedule);
+
+      // Close the background tab if it was opened by our scraper
+      if (sender && sender.tab && sender.tab.id && sender.tab.pinned) {
+        chrome.tabs.remove(sender.tab.id).catch(() => { });
+      }
+
       return { success: schedResult.ok, status: schedResult.status };
 
     // Content script sends scraped NvolveU events
     case 'NVOLVEU_EVENTS_SCRAPED':
       console.log(`[Kampus] Received ${message.data.length} events from NvolveU.`);
       await saveLastSync('nvolveu');
-      const evtResult = await syncNvolveUEvents(message.data);
+      // Normalize snake_case from content script to camelCase for backend
+      const normalizedEvents = message.data.map(e => ({
+        sourceId: e.source_id || e.sourceId || null,
+        title: e.title || '',
+        description: e.description || '',
+        startTime: e.start_time || e.startTime || null,
+        endTime: e.end_time || e.endTime || null,
+        building: e.location || e.building || '',
+        orgName: e.org_name || e.orgName || '',
+        eventUrl: e.event_url || e.eventUrl || '',
+      }));
+      const evtResult = await syncNvolveUEvents(normalizedEvents);
       return { success: evtResult.ok, status: evtResult.status };
 
     // Popup requests current sync status
@@ -235,7 +269,15 @@ async function scrapeCanvasCourses() {
 
   const courses = rawCourses
     .filter(c => c.id && c.name)
-    .map(c => parseCanvasCourse(c));
+    .map(c => {
+      const parsed = parseCanvasCourse(c);
+      return {
+        canvasId: parsed.canvas_id,
+        name: parsed.name,
+        code: parsed.code,
+        term: parsed.term,
+      };
+    });
 
   console.log(`[Kampus] Found ${courses.length} active courses.`);
 
@@ -268,7 +310,20 @@ async function scrapeCanvasAssignments(courses) {
 
       const parsed = rawAssignments
         .filter(a => a.id && a.name)
-        .map(a => parseCanvasAssignment(a, course.id, course.name));
+        .map(a => {
+          const p = parseCanvasAssignment(a, course.id, course.name);
+          return {
+            canvasId: p.canvas_id,
+            courseCanvasId: p.course_id,
+            name: p.name,
+            description: p.description,
+            dueAt: p.due_at,
+            pointsPossible: p.points_possible,
+            submissionTypes: p.submission_types,
+            hasSubmitted: p.has_submitted,
+            htmlUrl: p.html_url,
+          };
+        });
 
       allAssignments.push(...parsed);
     } catch (err) {
@@ -307,7 +362,12 @@ async function scrapeCanvasGrades(courses) {
 
       if (Array.isArray(enrollments)) {
         for (const enrollment of enrollments) {
-          allGrades.push(parseCanvasGrade(enrollment, course.id));
+          const g = parseCanvasGrade(enrollment, course.id);
+          allGrades.push({
+            courseCanvasId: g.course_id,
+            currentGrade: g.current_grade,
+            currentScore: g.current_score,
+          });
         }
       }
     } catch (err) {
@@ -359,7 +419,19 @@ async function scrapeNvolveUEvents() {
       return [];
     }
 
-    const events = rawEvents.map(e => parseNvolveUEvent(e));
+    const events = rawEvents.map(e => {
+      const p = parseNvolveUEvent(e);
+      return {
+        sourceId: p.source_id,
+        title: p.title,
+        description: p.description,
+        startTime: p.start_time,
+        endTime: p.end_time,
+        building: p.location || '',
+        orgName: p.org_name,
+        eventUrl: p.event_url,
+      };
+    });
     console.log(`[Kampus] Found ${events.length} NvolveU events.`);
 
     if (events.length > 0) {
@@ -388,7 +460,13 @@ async function runCanvasSync() {
     await saveLastSync('canvas');
     updateBadge('ok');
   } catch (err) {
-    console.error('[Kampus] Canvas sync failed:', err);
+    if (err.message.includes('401')) {
+      console.log('[Kampus] Canvas session expired (401). Opening background tab to refresh SSO...');
+      await openBackgroundScraper(CANVAS_BASE, 30000); // Wait up to 30s to bounce via SSO
+      // The session should hopefully be active for the next alarm, or the user can click sync.
+    } else {
+      console.error('[Kampus] Canvas sync failed:', err);
+    }
     updateBadge('error');
   }
 }
@@ -436,6 +514,9 @@ async function runFullSync() {
     results.grades = true;
   } catch (err) {
     console.error('[Kampus] Canvas full sync error:', err);
+    if (err.message.includes('401')) {
+      await openBackgroundScraper(CANVAS_BASE, 30000);
+    }
   }
 
   try {
@@ -446,10 +527,47 @@ async function runFullSync() {
     console.error('[Kampus] NvolveU full sync error:', err);
   }
 
+  // Also trigger MyRed background tab gracefully
+  await runMyRedScraper();
+
   const allOk = results.canvas && results.grades && results.nvolveu;
   updateBadge(allOk ? 'ok' : 'error');
 
   return { success: true, results };
+}
+
+// ---------------------------------------------------------------------------
+// Background Tab Autonomous Scraping
+// ---------------------------------------------------------------------------
+
+/**
+ * Opens a URL in a pinned, inactive background tab to trigger content scripts.
+ * The tab is automatically closed after a timeout to prevent clutter.
+ */
+async function openBackgroundScraper(url, timeoutMs = 60000) {
+  try {
+    const tab = await chrome.tabs.create({ url, active: false, pinned: true });
+
+    // Safety timeout: close the tab after 60s if the content script failed/hung
+    setTimeout(() => {
+      chrome.tabs.get(tab.id, (t) => {
+        if (!chrome.runtime.lastError && t) {
+          console.log(`[Kampus] Scraper timeout: closing background tab ${tab.id}`);
+          chrome.tabs.remove(tab.id).catch(() => { });
+        }
+      });
+    }, timeoutMs);
+
+    return tab;
+  } catch (err) {
+    console.error('[Kampus] Failed to open background scraper tab:', err);
+  }
+}
+
+async function runMyRedScraper() {
+  console.log('[Kampus] Launching autonomous MyRed scraper...');
+  const scheduleUrl = 'https://myred.nebraska.edu/psp/myred/NBL/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_SCHD_W.GBL?Page=SSR_SS_WEEK';
+  await openBackgroundScraper(scheduleUrl, 60000); // 60s timeout
 }
 
 // ---------------------------------------------------------------------------
@@ -505,10 +623,10 @@ async function getSyncStatus() {
  */
 function updateBadge(state) {
   const config = {
-    idle:    { text: '',    color: '#6B7280' },
-    syncing: { text: '...',  color: '#3B82F6' },
-    ok:      { text: '',  color: '#10B981' },
-    error:   { text: '!',   color: '#EF4444' },
+    idle: { text: '', color: '#6B7280' },
+    syncing: { text: '...', color: '#3B82F6' },
+    ok: { text: '', color: '#10B981' },
+    error: { text: '!', color: '#EF4444' },
   };
 
   const { text, color } = config[state] || config.idle;

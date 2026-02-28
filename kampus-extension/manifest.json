@@ -16,7 +16,7 @@
   ],
   "host_permissions": [
     "https://canvas.unl.edu/*",
-    "https://myred.unl.edu/*",
+    "https://myred.nebraska.edu/*",
     "https://unl.campuslabs.com/*",
     "https://events.unl.edu/*"
   ],
@@ -26,18 +26,30 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://canvas.unl.edu/*"],
-      "js": ["content-scripts/canvas.js"],
+      "matches": [
+        "https://canvas.unl.edu/*"
+      ],
+      "js": [
+        "content-scripts/canvas.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://myred.unl.edu/*"],
-      "js": ["content-scripts/myred.js"],
+      "matches": [
+        "https://myred.nebraska.edu/*"
+      ],
+      "js": [
+        "content-scripts/myred.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://unl.campuslabs.com/*"],
-      "js": ["content-scripts/nvolveu.js"],
+      "matches": [
+        "https://unl.campuslabs.com/*"
+      ],
+      "js": [
+        "content-scripts/nvolveu.js"
+      ],
       "run_at": "document_idle"
     }
   ],

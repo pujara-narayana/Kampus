@@ -1,0 +1,215 @@
+
+> web@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://10.69.100.214:3000
+- Environments: .env
+
+✓ Starting...
+✓ Ready in 650ms
+ GET /dashboard/sessions 200 in 341ms (compile: 189ms, render: 152ms)
+ GET /dashboard/calendar 200 in 55ms (compile: 19ms, render: 37ms)
+ GET /api/sessions 200 in 796ms (compile: 153ms, render: 642ms)
+ GET /api/sessions 200 in 123ms (compile: 3ms, render: 120ms)
+Calendar error: TypeError: Do not know how to serialize a BigInt
+    at JSON.stringify (<anonymous>)
+    at GET (src/app/api/calendar/route.ts:61:25)
+  59 |     ]);
+  60 |
+> 61 |     return NextResponse.json({
+     |                         ^
+  62 |       classes,
+  63 |       assignments,
+  64 |       events,
+ GET /api/calendar 500 in 995ms (compile: 37ms, render: 959ms)
+Calendar error: TypeError: Do not know how to serialize a BigInt
+    at JSON.stringify (<anonymous>)
+    at GET (src/app/api/calendar/route.ts:61:25)
+  59 |     ]);
+  60 |
+> 61 |     return NextResponse.json({
+     |                         ^
+  62 |       classes,
+  63 |       assignments,
+  64 |       events,
+ GET /api/calendar 500 in 492ms (compile: 1877µs, render: 490ms)
+ POST /api/auth/login 200 in 545ms (compile: 32ms, render: 513ms)
+[ai.ts] check OPENAI_API_KEY length: 164
+OpenAI assignment estimation failed: Error: 401 Incorrect API key provided: sk-proj-********************************************************************************************************************************************************TDsA. You can find your API key at https://platform.openai.com/account/api-keys.
+    at async estimateAssignmentTime (src/lib/ai.ts:113:22)
+    at async POST (src/app/api/sync/assignments/route.ts:75:28)
+  111 | Avoid markdown formatting outside the JSON block.`;
+  112 |
+> 113 |     const response = await client.chat.completions.create({
+      |                      ^
+  114 |       model: "gpt-4o-mini",
+  115 |       messages: [{ role: "user", content: prompt }],
+  116 |       response_format: { type: "json_object" }, {
+  status: 401,
+  headers: Headers {
+    date: 'Sat, 28 Feb 2026 20:11:10 GMT',
+    'content-type': 'text/plain',
+    'content-length': '410',
+    connection: 'keep-alive',
+    'x-openai-ide-error-code': 'invalid_api_key',
+    'x-openai-authorization-error': '401',
+    'x-error-json': 'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqVERzQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfSwKICAic3RhdHVzIjogNDAxCn0=',
+    'x-request-id': 'req_cf3dd57bd8f844b485d3915b3b2e6c3b',
+    'x-datadog-trace-id': '7825313431968754092',
+    'x-datadog-parent-id': '12488272443390383200',
+    'x-datadog-sampling-priority': '0',
+    'x-openai-internal-caller': 'unknown_through_ide',
+    'x-openai-proxy-wasm': 'v0.1',
+    server: 'cloudflare',
+    'cf-cache-status': 'DYNAMIC',
+    'set-cookie': '__cf_bm=8FPcpwLdtqfp7qYV10UIruOl5gIwcbH6Pe4keQavKMY-1772309470.2089636-1.0.1.1-mDapKW3FrCI7bTXIlATndxcj3MeoueDkAaDtDQlNIjMC1XEJruqflEB6S0CL282ZfjEbXFETOC_EhXRSMMes0o0Ish5ecNfb4T3oXALTxQCdWOLjdH5rLRlmtpKffwX1; HttpOnly; Secure; Path=/; Domain=api.openai.com; Expires=Sat, 28 Feb 2026 20:41:10 GMT, _cfuvid=RZxe56QSNTyHgZiLqtD59GJAD5GwndUyNPzt.fzOdnQ-1772309470.2089636-1.0.1.1-bYekHO8Vvman_jc8fyzdvmZ2rnHXN_jkBk.NtKUFic4; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'x-content-type-options': 'nosniff',
+    'cf-ray': '9d5291ccca79dac2-OMA',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_cf3dd57bd8f844b485d3915b3b2e6c3b',
+  error: [Object],
+  code: 'invalid_api_key',
+  param: null,
+  type: 'invalid_request_error'
+}
+ POST /api/sync/assignments 200 in 835ms (compile: 66ms, render: 769ms)
+✓ Compiled in 183ms
+  Reload env: .env
+ GET /dashboard/sessions 200 in 338ms (compile: 318ms, render: 20ms)
+ GET /dashboard/calendar 200 in 336ms (compile: 267ms, render: 69ms)
+ GET /dashboard/calendar 200 in 329ms (compile: 15ms, render: 314ms)
+ GET /dashboard/sessions 200 in 331ms (compile: 83ms, render: 248ms)
+ GET /dashboard/calendar 200 in 228ms (compile: 4ms, render: 224ms)
+ GET /dashboard/sessions 200 in 242ms (compile: 27ms, render: 215ms)
+ GET /dashboard/sessions 200 in 213ms (compile: 88ms, render: 125ms)
+ GET /dashboard/calendar 200 in 196ms (compile: 108ms, render: 88ms)
+ GET /dashboard/sessions 200 in 72ms (compile: 2ms, render: 70ms)
+ GET /dashboard/calendar 200 in 84ms (compile: 14ms, render: 69ms)
+ GET /dashboard/sessions 200 in 73ms (compile: 2ms, render: 71ms)
+ GET /dashboard/calendar 200 in 73ms (compile: 14ms, render: 59ms)
+ GET /dashboard/sessions 200 in 85ms (compile: 1630µs, render: 83ms)
+ GET /dashboard/calendar 200 in 74ms (compile: 2ms, render: 72ms)
+ GET /dashboard/sessions 200 in 79ms (compile: 2ms, render: 77ms)
+ GET /dashboard/calendar 200 in 76ms (compile: 3ms, render: 73ms)
+ GET /dashboard/sessions 200 in 77ms (compile: 2ms, render: 75ms)
+ GET /dashboard/calendar 200 in 78ms (compile: 15ms, render: 62ms)
+ GET /dashboard/sessions 200 in 113ms (compile: 3ms, render: 111ms)
+ GET /dashboard/calendar 200 in 104ms (compile: 4ms, render: 101ms)
+ GET /dashboard/sessions 200 in 124ms (compile: 1708µs, render: 122ms)
+ GET /dashboard/calendar 200 in 129ms (compile: 8ms, render: 122ms)
+ GET /dashboard/sessions 200 in 132ms (compile: 2ms, render: 130ms)
+ GET /dashboard/calendar 200 in 133ms (compile: 21ms, render: 112ms)
+ GET /dashboard/sessions 200 in 145ms (compile: 7ms, render: 138ms)
+ GET /dashboard/calendar 200 in 111ms (compile: 5ms, render: 107ms)
+ GET /dashboard/sessions 200 in 103ms (compile: 5ms, render: 98ms)
+ GET /dashboard/calendar 200 in 96ms (compile: 4ms, render: 92ms)
+ GET /dashboard/sessions 200 in 86ms (compile: 4ms, render: 83ms)
+ GET /dashboard/calendar 200 in 87ms (compile: 20ms, render: 68ms)
+ GET /dashboard/sessions 200 in 95ms (compile: 3ms, render: 92ms)
+ GET /dashboard/calendar 200 in 81ms (compile: 3ms, render: 78ms)
+ GET /dashboard/sessions 200 in 79ms (compile: 2ms, render: 76ms)
+ GET /dashboard/calendar 200 in 75ms (compile: 3ms, render: 72ms)
+ GET /dashboard/sessions 200 in 72ms (compile: 1932µs, render: 70ms)
+ GET /dashboard/calendar 200 in 59ms (compile: 2ms, render: 57ms)
+ GET /dashboard/sessions 200 in 77ms (compile: 3ms, render: 74ms)
+ GET /dashboard/calendar 200 in 63ms (compile: 1758µs, render: 62ms)
+ GET /dashboard/sessions 200 in 49ms (compile: 1609µs, render: 48ms)
+ GET /dashboard/calendar 200 in 66ms (compile: 1898µs, render: 64ms)
+ GET /dashboard/sessions 200 in 66ms (compile: 1757µs, render: 65ms)
+ GET /dashboard/calendar 200 in 67ms (compile: 12ms, render: 55ms)
+ GET /dashboard/sessions 200 in 82ms (compile: 3ms, render: 80ms)
+ GET /dashboard/calendar 200 in 69ms (compile: 3ms, render: 66ms)
+ GET /dashboard/sessions 200 in 57ms (compile: 3ms, render: 54ms)
+ GET /dashboard/calendar 200 in 65ms (compile: 3ms, render: 63ms)
+ GET /dashboard/sessions 200 in 64ms (compile: 1933µs, render: 62ms)
+ GET /dashboard/calendar 200 in 51ms (compile: 1803µs, render: 49ms)
+ GET /dashboard/sessions 200 in 101ms (compile: 3ms, render: 99ms)
+ GET /dashboard/calendar 200 in 100ms (compile: 12ms, render: 88ms)
+ GET /dashboard/sessions 200 in 81ms (compile: 1656µs, render: 79ms)
+ GET /dashboard/calendar 200 in 89ms (compile: 2ms, render: 87ms)
+ GET /dashboard/sessions 200 in 74ms (compile: 2ms, render: 72ms)
+ GET /dashboard/calendar 200 in 69ms (compile: 2ms, render: 66ms)
+ GET /dashboard/sessions 200 in 66ms (compile: 2ms, render: 64ms)
+ GET /dashboard/calendar 200 in 66ms (compile: 12ms, render: 54ms)
+ GET /dashboard/sessions 200 in 46ms (compile: 1393µs, render: 45ms)
+ GET /dashboard/calendar 200 in 57ms (compile: 1997µs, render: 55ms)
+ GET /dashboard/sessions 200 in 56ms (compile: 11ms, render: 46ms)
+ GET /dashboard/calendar 200 in 47ms (compile: 1237µs, render: 46ms)
+ GET /dashboard/sessions 200 in 66ms (compile: 1988µs, render: 64ms)
+ GET /dashboard/calendar 200 in 55ms (compile: 1689µs, render: 53ms)
+ GET /dashboard/sessions 200 in 45ms (compile: 1426µs, render: 43ms)
+ GET /dashboard/calendar 200 in 35ms (compile: 1896µs, render: 33ms)
+ GET /dashboard/sessions 200 in 35ms (compile: 13ms, render: 21ms)
+ GET /dashboard/calendar 200 in 33ms (compile: 1188µs, render: 32ms)
+ GET /dashboard/sessions 200 in 72ms (compile: 1398µs, render: 71ms)
+ GET /dashboard/calendar 200 in 72ms (compile: 10ms, render: 62ms)
+ GET /dashboard/sessions 200 in 53ms (compile: 1764µs, render: 51ms)
+ GET /dashboard/calendar 200 in 66ms (compile: 2ms, render: 64ms)
+ GET /dashboard/sessions 200 in 65ms (compile: 1800µs, render: 63ms)
+ GET /dashboard/calendar 200 in 54ms (compile: 1573µs, render: 52ms)
+ GET /dashboard/sessions 200 in 72ms (compile: 1835µs, render: 70ms)
+ GET /dashboard/calendar 200 in 72ms (compile: 13ms, render: 60ms)
+ GET /dashboard/sessions 200 in 49ms (compile: 2ms, render: 47ms)
+ GET /dashboard/calendar 200 in 57ms (compile: 1861µs, render: 55ms)
+ GET /dashboard/sessions 200 in 57ms (compile: 11ms, render: 46ms)
+ GET /dashboard/calendar 200 in 57ms (compile: 1474µs, render: 55ms)
+ GET /dashboard/sessions 200 in 65ms (compile: 1737µs, render: 63ms)
+ GET /dashboard/calendar 200 in 65ms (compile: 11ms, render: 54ms)
+ GET /dashboard/sessions 200 in 45ms (compile: 1671µs, render: 44ms)
+ GET /dashboard/calendar 200 in 54ms (compile: 1409µs, render: 52ms)
+ GET /dashboard/sessions 200 in 45ms (compile: 1067µs, render: 43ms)
+ GET /dashboard/calendar 200 in 48ms (compile: 1493µs, render: 47ms)
+ GET /dashboard/sessions 200 in 72ms (compile: 1715µs, render: 70ms)
+ GET /dashboard/calendar 200 in 63ms (compile: 1419µs, render: 61ms)
+ GET /dashboard/sessions 200 in 54ms (compile: 1514µs, render: 52ms)
+ GET /dashboard/sessions 200 in 61ms (compile: 12ms, render: 48ms)
+ GET /dashboard/calendar 200 in 66ms (compile: 6ms, render: 60ms)
+ GET /dashboard/calendar 200 in 49ms (compile: 1777µs, render: 47ms)
+ GET /dashboard/sessions 200 in 66ms (compile: 1831µs, render: 64ms)
+ GET /dashboard/calendar 200 in 56ms (compile: 1543µs, render: 54ms)
+ GET /dashboard/sessions 200 in 45ms (compile: 2ms, render: 43ms)
+ GET /dashboard/calendar 200 in 58ms (compile: 2ms, render: 56ms)
+ GET /dashboard/sessions 200 in 70ms (compile: 11ms, render: 58ms)
+ GET /dashboard/calendar 200 in 51ms (compile: 1248µs, render: 50ms)
+ GET /dashboard/sessions 200 in 75ms (compile: 2ms, render: 72ms)
+ GET /dashboard/calendar 200 in 62ms (compile: 1992µs, render: 60ms)
+ GET /dashboard/sessions 200 in 51ms (compile: 3ms, render: 47ms)
+ GET /dashboard/calendar 200 in 49ms (compile: 1889µs, render: 47ms)
+ GET /dashboard/sessions 200 in 59ms (compile: 12ms, render: 47ms)
+ GET /dashboard/calendar 200 in 49ms (compile: 1241µs, render: 48ms)
+ GET /dashboard/sessions 200 in 69ms (compile: 1740µs, render: 67ms)
+ GET /dashboard/calendar 200 in 58ms (compile: 2ms, render: 56ms)
+ GET /dashboard/sessions 200 in 49ms (compile: 2ms, render: 47ms)
+ GET /dashboard/calendar 200 in 71ms (compile: 12ms, render: 59ms)
+ GET /dashboard/sessions 200 in 78ms (compile: 1585µs, render: 77ms)
+ GET /dashboard/calendar 200 in 79ms (compile: 14ms, render: 66ms)
+ GET /dashboard/calendar 200 in 82ms (compile: 13ms, render: 69ms)
+ GET /dashboard/sessions 200 in 83ms (compile: 2ms, render: 81ms)
+ GET /dashboard/calendar 200 in 81ms (compile: 14ms, render: 68ms)
+ GET /dashboard/sessions 200 in 83ms (compile: 3ms, render: 80ms)
+ GET /dashboard/calendar 200 in 80ms (compile: 14ms, render: 66ms)
+ GET /dashboard/sessions 200 in 81ms (compile: 3ms, render: 78ms)
+ GET /dashboard/sessions 200 in 75ms (compile: 2ms, render: 73ms)
+ GET /dashboard/calendar 200 in 75ms (compile: 13ms, render: 62ms)
+ GET /dashboard/sessions 200 in 72ms (compile: 2ms, render: 70ms)
+ GET /dashboard/calendar 200 in 72ms (compile: 14ms, render: 59ms)
+ GET /dashboard/sessions 200 in 71ms (compile: 1551µs, render: 69ms)
+ GET /dashboard/calendar 200 in 61ms (compile: 1364µs, render: 60ms)
+ GET /dashboard/sessions 200 in 74ms (compile: 1888µs, render: 72ms)
+ GET /dashboard/calendar 200 in 74ms (compile: 12ms, render: 63ms)
+ GET /dashboard/sessions 200 in 51ms (compile: 2ms, render: 49ms)
+ GET /dashboard/calendar 200 in 51ms (compile: 12ms, render: 38ms)
+ GET /dashboard/sessions 200 in 72ms (compile: 1824µs, render: 70ms)
+ GET /dashboard/calendar 200 in 61ms (compile: 2ms, render: 59ms)
+ GET /dashboard/sessions 200 in 72ms (compile: 2ms, render: 70ms)
+ GET /dashboard/calendar 200 in 72ms (compile: 12ms, render: 60ms)
+ GET /dashboard/calendar 200 in 52ms (compile: 11ms, render: 41ms)
+ GET /dashboard/sessions 200 in 64ms (compile: 1516µs, render: 62ms)
+ GET /dashboard/sessions 200 in 51ms (compile: 1963µs, render: 49ms)
+ GET /dashboard/calendar 200 in 51ms (compile: 12ms, render: 39ms)
+ GET /dashboard/sessions 200 in 25ms (compile: 1998µs, render: 23ms)
+ GET /dashboard/calendar 200 in 24ms (compile: 13ms, render: 11ms)

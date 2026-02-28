@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
       pointsPossible: a.pointsPossible,
       submissionTypes: a.submissionTypes,
       estimatedHours: a.estimatedHours,
+      aiStudyTip: a.aiStudyTip,
       htmlUrl: a.htmlUrl,
       course: a.course,
     }));

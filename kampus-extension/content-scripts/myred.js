@@ -25,6 +25,9 @@
       'student_schedule',
       'detail_schedule',
       'concise_schedule',
+      'student.main',         // The user's new link
+      'cref=nbl_nvc',         // The user's new link
+      'page=ssr_ss_week',     // The background scraper link
     ];
 
     if (schedulePatterns.some(p => url.includes(p))) {
