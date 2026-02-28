@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ interface SessionParticipant {
 
 export default function SessionsPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [showJoinedOnly, setShowJoinedOnly] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -208,6 +210,36 @@ export default function SessionsPage() {
       return next;
     });
   };
+
+  async function handleEndSession(sessionId: string) {
+    try {
+      await api.endSession(sessionId);
+      toast.success("Session ended");
+      loadSessions();
+      if (detailSessionId === sessionId) {
+        closeSessionDetail();
+      }
+    } catch {
+      toast.error("Failed to end session");
+    }
+  }
+
+  async function handleRemoveParticipant(sessionId: string, groupChatId: string | undefined, userId: string) {
+    if (!groupChatId) {
+      toast.error("No group chat found for this session");
+      return;
+    }
+    try {
+      await api.removeGroupChatMember(groupChatId, userId);
+      toast.success("Participant removed");
+      // Refresh detail
+      if (detailSessionId) {
+        openSessionDetail(detailSessionId);
+      }
+    } catch {
+      toast.error("Failed to remove participant");
+    }
+  }
 
   async function openSessionDetail(sessionId: string) {
     setDetailSessionId(sessionId);
@@ -505,10 +537,26 @@ export default function SessionsPage() {
                             {p.user?.displayName?.charAt(0)?.toUpperCase() || "?"}
                           </AvatarFallback>
                         </Avatar>
-                        <span>{p.user?.displayName || "Student"}</span>
+                        <span className="flex-1">{p.user?.displayName || "Student"}</span>
                         <Badge variant={p.status === "accepted" ? "secondary" : "outline"} className="text-xs">
                           {p.status}
                         </Badge>
+                        {detailSession?.creatorId === user?.id && p.userId !== user?.id && p.status === "accepted" && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                            onClick={() =>
+                              handleRemoveParticipant(
+                                detailSessionId!,
+                                (detailSession as any).groupChat?.id,
+                                p.userId
+                              )
+                            }
+                          >
+                            Remove
+                          </Button>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -518,6 +566,20 @@ export default function SessionsPage() {
               </div>
               <Separator />
               <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                {/* Group Chat button - shown to creator and accepted participants */}
+                {(detailSession.creatorId === user?.id ||
+                  (Array.isArray(detailSession.participants) && detailSession.participants.some((p: any) => p.userId === user?.id && p.status === "accepted"))) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      closeSessionDetail();
+                      router.push(`/dashboard/chat?session=${detailSessionId}`);
+                    }}
+                  >
+                    Group Chat
+                  </Button>
+                )}
                 {detailSession.creatorId === user?.id && (
                   <Button
                     size="sm"
@@ -530,6 +592,16 @@ export default function SessionsPage() {
                     }}
                   >
                     Invite people
+                  </Button>
+                )}
+                {/* End Session button - creator only, for non-completed sessions */}
+                {detailSession.creatorId === user?.id && detailSession.status !== "completed" && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleEndSession(detailSessionId!)}
+                  >
+                    End Session
                   </Button>
                 )}
                 {detailSession.creatorId !== user?.id &&

@@ -58,6 +58,17 @@ export async function POST(
           data: { status: "accepted", respondedAt: new Date() },
         });
       }
+
+      // Add to group chat (upsert handles re-joining)
+      const groupChat = await prisma.groupChat.findUnique({ where: { sessionId: id } });
+      if (groupChat) {
+        await prisma.groupChatMember.upsert({
+          where: { groupChatId_userId: { groupChatId: groupChat.id, userId: user.id } },
+          update: { removedAt: null },
+          create: { groupChatId: groupChat.id, userId: user.id, role: "member" },
+        });
+      }
+
       return NextResponse.json({ message: "Already joined", participant: existing }, { status: 200 });
     }
 
@@ -69,6 +80,16 @@ export async function POST(
         respondedAt: new Date(),
       },
     });
+
+    // Add to group chat
+    const groupChat = await prisma.groupChat.findUnique({ where: { sessionId: id } });
+    if (groupChat) {
+      await prisma.groupChatMember.upsert({
+        where: { groupChatId_userId: { groupChatId: groupChat.id, userId: user.id } },
+        update: { removedAt: null },
+        create: { groupChatId: groupChat.id, userId: user.id, role: "member" },
+      });
+    }
 
     // Notify session creator
     if (session.creatorId !== user.id) {
@@ -126,6 +147,15 @@ export async function DELETE(
       where: { id: existing.id },
       data: { status: "declined", respondedAt: new Date() },
     });
+
+    // Remove from group chat
+    const groupChat = await prisma.groupChat.findUnique({ where: { sessionId: id } });
+    if (groupChat) {
+      await prisma.groupChatMember.updateMany({
+        where: { groupChatId: groupChat.id, userId: user.id, removedAt: null },
+        data: { removedAt: new Date() },
+      });
+    }
 
     return NextResponse.json({ success: true, message: "Left session" });
   } catch (error) {

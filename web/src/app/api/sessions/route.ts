@@ -113,6 +113,21 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Create group chat for the session
+    const groupChat = await prisma.groupChat.create({
+      data: {
+        sessionId: session.id,
+        name: session.title || "Study Session Chat",
+      },
+    });
+    await prisma.groupChatMember.create({
+      data: {
+        groupChatId: groupChat.id,
+        userId: user.id,
+        role: "admin",
+      },
+    });
+
     // Create a feed item
     await prisma.feedItem.create({
       data: {

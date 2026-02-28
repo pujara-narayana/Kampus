@@ -22,6 +22,40 @@ export interface ChatWithUserResponse {
   nextCursor: string | null;
 }
 
+export interface GroupChatSummary {
+  id: string;
+  name: string | null;
+  sessionId: string;
+  sessionTitle: string | null;
+  sessionStatus: string;
+  memberCount: number;
+  updatedAt: string;
+  lastMessage: { id: string; body: string; senderId: string; senderName: string | null; createdAt: string } | null;
+}
+
+export interface GroupChatMemberInfo {
+  id: string;
+  userId: string;
+  role: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+}
+
+export interface GroupChatDetail {
+  groupChat: {
+    id: string;
+    name: string | null;
+    sessionId: string;
+    sessionTitle: string | null;
+    sessionStatus: string;
+    creatorId: string;
+  };
+  members: GroupChatMemberInfo[];
+  messages: ChatMessage[];
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("kampus_token");
@@ -157,6 +191,30 @@ export const api = {
     fetchAPI<{ message: ChatMessage }>("/api/chat/messages", {
       method: "POST",
       body: JSON.stringify({ conversationId, text }),
+    }),
+
+  // Group Chat
+  getGroupChats: () =>
+    fetchAPI<{ groupChats: GroupChatSummary[] }>("/api/chat/group-chats"),
+  getGroupChat: (groupChatId: string, limit?: number, before?: string) => {
+    const params = new URLSearchParams();
+    if (limit != null) params.set("limit", String(limit));
+    if (before) params.set("before", before);
+    const q = params.toString();
+    return fetchAPI<GroupChatDetail>(`/api/chat/group/${groupChatId}${q ? `?${q}` : ""}`);
+  },
+  sendGroupChatMessage: (groupChatId: string, text: string) =>
+    fetchAPI<{ message: ChatMessage }>(`/api/chat/group/${groupChatId}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
+  removeGroupChatMember: (groupChatId: string, userId: string) =>
+    fetchAPI<{ success: boolean; message: string }>(`/api/chat/group/${groupChatId}/members/${userId}`, {
+      method: "DELETE",
+    }),
+  endSession: (sessionId: string) =>
+    fetchAPI<{ success: boolean; message: string; hiddenAt: string }>(`/api/sessions/${sessionId}/end`, {
+      method: "POST",
     }),
 
   // Insights

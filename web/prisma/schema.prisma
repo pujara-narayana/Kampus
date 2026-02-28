@@ -33,6 +33,8 @@ model User {
   conversationsAsUser1 Conversation[]  @relation("ConvUser1")
   conversationsAsUser2 Conversation[]  @relation("ConvUser2")
   directMessages     DirectMessage[]
+  groupChatMembers   GroupChatMember[]
+  groupChatMessages  GroupChatMessage[]
   feedItems          FeedItem[]
   notifications      Notification[]
   assignmentBehaviors AssignmentBehavior[]
@@ -226,6 +228,7 @@ model StudySession {
   course       Course?              @relation(fields: [courseId], references: [id])
   assignment   Assignment?          @relation(fields: [assignmentId], references: [id])
   participants SessionParticipant[]
+  groupChat    GroupChat?
 
   @@map("study_sessions")
 }
@@ -379,4 +382,47 @@ model Streak {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("streaks")
+}
+
+model GroupChat {
+  id        String    @id @default(uuid())
+  sessionId String    @unique @map("session_id")
+  name      String?   @db.VarChar(200)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  hiddenAt  DateTime? @map("hidden_at")
+
+  session  StudySession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  members  GroupChatMember[]
+  messages GroupChatMessage[]
+
+  @@map("group_chats")
+}
+
+model GroupChatMember {
+  id          String    @id @default(uuid())
+  groupChatId String    @map("group_chat_id")
+  userId      String    @map("user_id")
+  role        String    @default("member") @db.VarChar(20)
+  joinedAt    DateTime  @default(now()) @map("joined_at")
+  removedAt   DateTime? @map("removed_at")
+
+  groupChat GroupChat @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupChatId, userId])
+  @@map("group_chat_members")
+}
+
+model GroupChatMessage {
+  id          String   @id @default(uuid())
+  groupChatId String   @map("group_chat_id")
+  senderId    String   @map("sender_id")
+  body        String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  groupChat GroupChat @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("group_chat_messages")
 }

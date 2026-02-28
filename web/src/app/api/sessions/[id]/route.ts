@@ -27,6 +27,9 @@ export async function GET(
             },
           },
         },
+        groupChat: {
+          select: { id: true },
+        },
       },
     });
 
