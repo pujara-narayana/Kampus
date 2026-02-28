@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,13 +16,16 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth-context";
 
-export default function LoginPage() {
+function LoginContent() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { login } = useAuth();
+
+    const casError = searchParams.get("error");
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -51,11 +54,38 @@ export default function LoginPage() {
             </CardHeader>
             <form onSubmit={handleSubmit}>
                 <CardContent className="space-y-4">
-                    {error && (
+                    {(error || casError) && (
                         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-                            {error}
+                            {error || (casError === "cas_invalid"
+                                ? "UNL login validation failed. Please try again."
+                                : casError === "cas_error"
+                                    ? "Something went wrong with UNL login. Please try again."
+                                    : "Login error. Please try again.")}
                         </div>
                     )}
+
+                    {/* UNL SSO Button */}
+                    <Button
+                        type="button"
+                        className="w-full bg-red-700 hover:bg-red-600 text-white font-semibold text-base py-5"
+                        onClick={() => {
+                            window.location.href = "/api/auth/cas";
+                        }}
+                    >
+                        🏛️ Sign in with UNL
+                    </Button>
+
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t border-white/10" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-transparent px-2 text-blue-200/40">
+                                or use email
+                            </span>
+                        </div>
+                    </div>
+
                     <div className="space-y-2">
                         <Label htmlFor="email" className="text-blue-100/80">
                             Email
@@ -105,5 +135,13 @@ export default function LoginPage() {
                 </CardFooter>
             </form>
         </Card>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="text-white text-center">Loading...</div>}>
+            <LoginContent />
+        </Suspense>
     );
 }

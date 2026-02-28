@@ -183,4 +183,25 @@ export const api = {
 
   // Seed
   seed: () => fetchAPI<Record<string, unknown>>("/api/seed", { method: "POST" }),
+
+  // Canvas Token
+  saveCanvasToken: (token: string) =>
+    fetchAPI<{ success: boolean; message: string }>("/api/settings/canvas-token", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
+  deleteCanvasToken: () =>
+    fetchAPI<{ success: boolean; message: string }>("/api/settings/canvas-token", {
+      method: "DELETE",
+    }),
+
+  // Server-side sync
+  syncCanvas: () =>
+    fetchAPI<{ success: boolean; synced: { courses: number; assignments: number; grades: number } }>("/api/sync/canvas", {
+      method: "POST",
+    }),
+  syncNvolveu: () =>
+    fetchAPI<{ success: boolean; synced: { events: number; total: number } }>("/api/sync/nvolveu", {
+      method: "POST",
+    }),
 };

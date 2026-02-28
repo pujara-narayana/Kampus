@@ -21,7 +21,9 @@
     "https://canvas.unl.edu/*",
     "https://myred.nebraska.edu/*",
     "https://unl.campuslabs.com/*",
-    "https://events.unl.edu/*"
+    "https://events.unl.edu/*",
+    "http://localhost:3000/*",
+    "http://localhost:3001/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -52,6 +54,16 @@
       ],
       "js": [
         "content-scripts/nvolveu.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://localhost:3000/*",
+        "http://localhost:3001/*"
+      ],
+      "js": [
+        "content-scripts/kampus-web.js"
       ],
       "run_at": "document_idle"
     }

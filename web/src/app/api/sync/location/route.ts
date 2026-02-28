@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
         await prisma.locationLog.create({
             data: {
                 userId: user.id,
-                source: source || 'chrome-extension',
+                source: (source || 'extension').substring(0, 20),
                 arrivedAt: timestamp ? new Date(timestamp) : new Date(),
                 dayOfWeek: new Date().getDay(),
             },

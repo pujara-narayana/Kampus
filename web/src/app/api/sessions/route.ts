@@ -12,7 +12,8 @@ export async function GET(req: NextRequest) {
     const settings = (user.settings as { sessionVisibility?: string }) ?? {};
     const friendsOnly = settings.sessionVisibility === "friends";
 
-    let whereClause: Parameters<typeof prisma.studySession.findMany>[0]["where"];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let whereClause: any;
 
     if (friendsOnly) {
       const connections = await prisma.connection.findMany({

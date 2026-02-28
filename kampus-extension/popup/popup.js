@@ -21,11 +21,7 @@ const openAppBtn = document.getElementById('openApp');
 // DOM references — auth
 const loginSection = document.getElementById('loginSection');
 const accountSection = document.getElementById('accountSection');
-const loginForm = document.getElementById('loginForm');
-const loginEmail = document.getElementById('loginEmail');
-const loginPassword = document.getElementById('loginPassword');
-const loginError = document.getElementById('loginError');
-const loginBtn = document.getElementById('loginBtn');
+const connectViaWebBtn = document.getElementById('connectViaWebBtn');
 const accountEmail = document.getElementById('accountEmail');
 const disconnectBtn = document.getElementById('disconnectBtn');
 
@@ -50,18 +46,8 @@ function timeAgo(timestamp) {
     return `${days}d ago`;
 }
 
-function showLoginError(msg) {
-    loginError.textContent = msg;
-    loginError.style.display = 'block';
-}
-
-function clearLoginError() {
-    loginError.textContent = '';
-    loginError.style.display = 'none';
-}
-
 // ---------------------------------------------------------------------------
-// Auth — Login / Disconnect
+// Auth — Connect via Website / Disconnect
 // ---------------------------------------------------------------------------
 
 async function checkAuthState() {
@@ -90,54 +76,12 @@ async function checkAuthState() {
     }
 }
 
-loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    clearLoginError();
-
-    const email = loginEmail.value.trim();
-    const password = loginPassword.value;
-
-    if (!email || !password) {
-        showLoginError('Please enter email and password.');
-        return;
-    }
-
-    loginBtn.disabled = true;
-    loginBtn.textContent = '⏳ Connecting...';
-
-    try {
-        const apiBase = await getApiBase();
-        const response = await fetch(`${apiBase}/api/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-            showLoginError(result.error || 'Login failed');
-            return;
-        }
-
-        // Store token and user info
-        await chrome.storage.local.set({
-            [TOKEN_KEY]: result.token,
-            [USER_KEY]: JSON.stringify(result.user),
-        });
-
-        // Notify background worker
-        chrome.runtime.sendMessage({ type: 'SET_TOKEN', token: result.token });
-
-        // Update UI
-        await checkAuthState();
-        setStatus('synced', 'Account connected!');
-    } catch (err) {
-        showLoginError('Could not reach Kampus server. Is it running?');
-    } finally {
-        loginBtn.disabled = false;
-        loginBtn.textContent = '🔗 Connect';
-    }
+// Open the Kampus website for login — the website will send the token back
+connectViaWebBtn.addEventListener('click', async () => {
+    const apiBase = await getApiBase();
+    // Open the login page with a flag telling it to send the token to the extension
+    chrome.tabs.create({ url: `${apiBase}/login?ext=connect` });
+    window.close();
 });
 
 disconnectBtn.addEventListener('click', async () => {
@@ -145,6 +89,16 @@ disconnectBtn.addEventListener('click', async () => {
     chrome.runtime.sendMessage({ type: 'SET_TOKEN', token: '' });
     await checkAuthState();
     setStatus('idle', 'Disconnected');
+});
+
+// Listen for token from the web app (via external message or storage change)
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes[TOKEN_KEY]) {
+        checkAuthState();
+        if (changes[TOKEN_KEY].newValue) {
+            setStatus('synced', 'Account connected!');
+        }
+    }
 });
 
 // ---------------------------------------------------------------------------

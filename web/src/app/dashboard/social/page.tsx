@@ -122,7 +122,7 @@ export default function SocialPage() {
     setPeopleLoading(true);
     try {
       const res = await api.getPeople();
-      setPeople((res.people || []) as PersonRow[]);
+      setPeople((res.people || []) as unknown as PersonRow[]);
     } catch {
       setPeople([]);
     } finally {
