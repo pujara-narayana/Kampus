@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 import { calculateWalkingDistance } from "@/lib/ai";
+import { getEventsFromData } from "@/lib/events-data";
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,18 +25,16 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Fetch upcoming events that have coordinates
-    const events = await prisma.event.findMany({
-      where: {
-        startTime: { gte: new Date() },
-        lat: { not: null },
-        lng: { not: null },
-      },
-      orderBy: { startTime: "asc" },
-    });
+    const events = getEventsFromData({ limit: 300 });
+    const withCoords = events.filter(
+      (e) =>
+        e.lat != null &&
+        e.lng != null &&
+        !Number.isNaN(e.lat) &&
+        !Number.isNaN(e.lng)
+    );
 
-    // Calculate distance for each event and filter by radius
-    const nearbyEvents = events
+    const nearbyEvents = withCoords
       .map((event) => {
         const eventLat = Number(event.lat);
         const eventLng = Number(event.lng);
@@ -52,7 +50,7 @@ export async function GET(req: NextRequest) {
           walkingMinutes: durationMinutes,
         };
       })
-      .filter((event) => event.distanceMeters <= radiusMeters)
+      .filter((e) => e.distanceMeters <= radiusMeters)
       .sort((a, b) => a.distanceMeters - b.distanceMeters);
 
     return NextResponse.json({

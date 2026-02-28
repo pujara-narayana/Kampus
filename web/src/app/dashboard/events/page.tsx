@@ -20,6 +20,7 @@ interface EventItem {
   eventType: string | null;
   orgName: string | null;
   eventUrl: string | null;
+  imageUrl?: string | null;
 }
 
 export default function EventsPage() {
@@ -118,6 +119,15 @@ export default function EventsPage() {
                       : ""
                   }
                 >
+                  {event.imageUrl && (
+                    <div className="relative aspect-video w-full overflow-hidden rounded-t-lg bg-muted">
+                      <img
+                        src={event.imageUrl}
+                        alt=""
+                        className="object-cover w-full h-full"
+                      />
+                    </div>
+                  )}
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
                       <CardTitle className="text-base leading-tight">

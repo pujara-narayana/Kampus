@@ -5,6 +5,7 @@ import {
   fetchGoogleCalendarEvents,
   type GoogleTokens,
 } from "@/lib/google-calendar";
+import { getEventsFromData } from "@/lib/events-data";
 
 function defaultCalendarRange(): { timeMin: Date; timeMax: Date } {
   const now = new Date();
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest) {
       ? new Date(to)
       : defaultCalendarRange().timeMax;
 
-    const [classes, assignments, events, studySessions] = await Promise.all([
+    const [classes, assignments, studySessions] = await Promise.all([
       prisma.classSchedule.findMany({
         where: { userId: user.id },
         orderBy: { startTime: "asc" },
@@ -61,14 +62,6 @@ export async function GET(req: NextRequest) {
         },
         include: { course: { select: { name: true, code: true } } },
         orderBy: { dueAt: "asc" },
-      }),
-
-      prisma.event.findMany({
-        where: hasDateFilter
-          ? { startTime: dateFilter }
-          : { startTime: { gte: new Date() } },
-        orderBy: { startTime: "asc" },
-        take: 100,
       }),
 
       prisma.studySession.findMany({
@@ -86,6 +79,12 @@ export async function GET(req: NextRequest) {
         orderBy: { startTime: "asc" },
       }),
     ]);
+
+    const events = getEventsFromData({
+      from: timeMin,
+      to: timeMax,
+      limit: 200,
+    });
 
     let googleEvents: Awaited<ReturnType<typeof fetchGoogleCalendarEvents>> = [];
     const tokens = user.googleToken as GoogleTokens | null;
