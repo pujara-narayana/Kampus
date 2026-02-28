@@ -1,5 +1,27 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
+export interface ChatConversation {
+  id: string;
+  otherUser: { id: string; displayName: string | null; avatarUrl: string | null; email: string | null };
+  lastMessage: { id: string; body: string; senderId: string; createdAt: string } | null;
+  updatedAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  body: string;
+  senderId: string;
+  senderName: string | null;
+  createdAt: string;
+}
+
+export interface ChatWithUserResponse {
+  conversation: { id: string; otherUser: { id: string; displayName: string | null; avatarUrl: string | null; email: string | null } };
+  messages: ChatMessage[];
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("kampus_token");
@@ -78,6 +100,8 @@ export const api = {
   // Sessions
   getSessions: () =>
     fetchAPI<{ sessions: Record<string, unknown>[] }>("/api/sessions"),
+  getSession: (id: string) =>
+    fetchAPI<{ session: Record<string, unknown> }>(`/api/sessions/${id}`),
   createSession: (data: Record<string, unknown>) =>
     fetchAPI<{ session: Record<string, unknown> }>("/api/sessions", {
       method: "POST",
@@ -115,6 +139,22 @@ export const api = {
   getSameBoat: (courseId: string) =>
     fetchAPI<{ users: Record<string, unknown>[] }>(`/api/social/same-boat?courseId=${courseId}`),
 
+  // Chat (connections)
+  getChatConversations: () =>
+    fetchAPI<{ conversations: ChatConversation[] }>("/api/chat/conversations"),
+  getChatWithUser: (userId: string, limit?: number, before?: string) => {
+    const params = new URLSearchParams();
+    if (limit != null) params.set("limit", String(limit));
+    if (before) params.set("before", before);
+    const q = params.toString();
+    return fetchAPI<ChatWithUserResponse>(`/api/chat/with/${userId}${q ? `?${q}` : ""}`);
+  },
+  sendChatMessage: (conversationId: string, text: string) =>
+    fetchAPI<{ message: ChatMessage }>("/api/chat/messages", {
+      method: "POST",
+      body: JSON.stringify({ conversationId, text }),
+    }),
+
   // Insights
   getWeeklyInsights: () => fetchAPI<Record<string, unknown>>("/api/insights/weekly"),
   getPatterns: () => fetchAPI<Record<string, unknown>>("/api/insights/patterns"),
@@ -126,6 +166,15 @@ export const api = {
     fetchAPI<Record<string, unknown>>("/api/notifications", {
       method: "PUT",
       body: JSON.stringify({ ids }),
+    }),
+
+  // Settings
+  getSettings: () =>
+    fetchAPI<{ sessionVisibility: "all" | "friends" }>("/api/settings"),
+  updateSettings: (data: { sessionVisibility?: "all" | "friends" }) =>
+    fetchAPI<{ sessionVisibility: "all" | "friends" }>("/api/settings", {
+      method: "PATCH",
+      body: JSON.stringify(data),
     }),
 
   // Seed

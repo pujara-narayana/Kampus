@@ -12,16 +12,43 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { api } from "@/lib/api-client";
+import { toast } from "sonner";
 
 type ThemeValue = "light" | "dark" | "system";
+type SessionVisibility = "all" | "friends";
 
 export default function SettingsPage() {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [sessionVisibility, setSessionVisibility] = useState<SessionVisibility>("all");
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [savingVisibility, setSavingVisibility] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    api
+      .getSettings()
+      .then((res) => setSessionVisibility(res.sessionVisibility ?? "all"))
+      .catch(() => {})
+      .finally(() => setSettingsLoading(false));
+  }, []);
+
+  async function handleSessionVisibilityChange(value: SessionVisibility) {
+    setSavingVisibility(true);
+    try {
+      await api.updateSettings({ sessionVisibility: value });
+      setSessionVisibility(value);
+      toast.success("Study session preference saved.");
+    } catch {
+      toast.error("Failed to save.");
+    } finally {
+      setSavingVisibility(false);
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -60,6 +87,38 @@ export default function SettingsPage() {
               {mounted && resolvedTheme
                 ? `Currently using ${resolvedTheme} mode.`
                 : "Theme follows your device setting when set to System."}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Study Sessions</CardTitle>
+          <CardDescription>
+            Choose which study sessions appear on the Study Sessions page.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="sessionVisibility">Session visibility</Label>
+            <Select
+              value={settingsLoading ? "all" : sessionVisibility}
+              onValueChange={(v) => handleSessionVisibilityChange(v as SessionVisibility)}
+              disabled={settingsLoading || savingVisibility}
+            >
+              <SelectTrigger id="sessionVisibility" className="w-[240px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Everyone&apos;s public sessions</SelectItem>
+                <SelectItem value="friends">Friends only</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {sessionVisibility === "all"
+                ? "You see all public study sessions and can join any of them."
+                : "You only see sessions created by you or your friends."}
             </p>
           </div>
         </CardContent>

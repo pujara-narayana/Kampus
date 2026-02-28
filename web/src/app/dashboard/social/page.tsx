@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -283,7 +284,7 @@ export default function SocialPage() {
                       <p className="text-xs text-muted-foreground truncate">
                         {conn.email || ""}
                       </p>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <Badge
                           variant={
                             conn.status === "accepted"
@@ -299,6 +300,13 @@ export default function SocialPage() {
                               ? "Wants to connect"
                               : "Pending"}
                         </Badge>
+                        {conn.status === "accepted" && (
+                          <Button size="sm" variant="outline" asChild>
+                            <Link href={`/dashboard/chat?with=${conn.otherUserId}`}>
+                              Message
+                            </Link>
+                          </Button>
+                        )}
                       </div>
                     </div>
                     {conn.direction === "received" && conn.status === "pending" && (

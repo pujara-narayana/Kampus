@@ -16,6 +16,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 import { api } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
@@ -44,6 +46,13 @@ interface InviteUser {
   avatarUrl?: string | null;
 }
 
+interface SessionParticipant {
+  id: string;
+  userId: string;
+  status: string;
+  user: { id: string; displayName: string | null; avatarUrl: string | null };
+}
+
 export default function SessionsPage() {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -55,6 +64,9 @@ export default function SessionsPage() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [inviting, setInviting] = useState(false);
+  const [detailSessionId, setDetailSessionId] = useState<string | null>(null);
+  const [detailSession, setDetailSession] = useState<Record<string, unknown> | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
     loadSessions();
@@ -181,6 +193,25 @@ export default function SessionsPage() {
       else next.add(userId);
       return next;
     });
+  };
+
+  async function openSessionDetail(sessionId: string) {
+    setDetailSessionId(sessionId);
+    setDetailLoading(true);
+    setDetailSession(null);
+    try {
+      const res = await api.getSession(sessionId);
+      setDetailSession(res.session as Record<string, unknown>);
+    } catch {
+      setDetailSessionId(null);
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  function closeSessionDetail() {
+    setDetailSessionId(null);
+    setDetailSession(null);
   }
 
   return (
@@ -287,7 +318,11 @@ export default function SessionsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {sessions.map((session) => (
-            <Card key={session.id}>
+            <Card
+              key={session.id}
+              className="cursor-pointer transition-colors hover:bg-accent/50"
+              onClick={() => openSessionDetail(session.id)}
+            >
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
                   <CardTitle className="text-base">{session.title}</CardTitle>
@@ -341,7 +376,7 @@ export default function SessionsPage() {
                     {session.description}
                   </p>
                 )}
-                <div className="pt-2 flex flex-wrap gap-2">
+                <div className="pt-2 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                   {session.isCreator && (
                     <Button
                       size="sm"
@@ -372,6 +407,123 @@ export default function SessionsPage() {
           ))}
         </div>
       )}
+
+      {/* Session detail dialog */}
+      <Dialog open={!!detailSessionId} onOpenChange={(open) => !open && closeSessionDetail()}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Session details</DialogTitle>
+          </DialogHeader>
+          {detailLoading ? (
+            <p className="text-sm text-muted-foreground py-4">Loading...</p>
+          ) : detailSession ? (
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-lg">{detailSession.title as string}</h3>
+                {(detailSession.creator as Record<string, unknown>)?.displayName && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Created by {(detailSession.creator as Record<string, unknown>).displayName as string}
+                  </p>
+                )}
+              </div>
+              {(detailSession.course as Record<string, unknown>) && (
+                <p className="text-sm">
+                  <span className="text-muted-foreground">Course:</span>{" "}
+                  {(detailSession.course as Record<string, unknown>).code as string || (detailSession.course as Record<string, unknown>).name as string || "—"}
+                </p>
+              )}
+              {detailSession.description && (
+                <p className="text-sm text-muted-foreground">{detailSession.description as string}</p>
+              )}
+              <Separator />
+              <div className="grid gap-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <span>📍</span>
+                  <span>{(detailSession.building as string) || "TBD"}{(detailSession.room as string) ? ` ${detailSession.room}` : ""}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>🕐</span>
+                  <span>
+                    {detailSession.startTime
+                      ? new Date(detailSession.startTime as string).toLocaleString(undefined, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })
+                      : "—"}
+                    {detailSession.endTime && (
+                      <> – {new Date(detailSession.endTime as string).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>👥</span>
+                  <span>
+                    {(detailSession.participants as unknown[])?.length ?? 0} / {(detailSession.maxParticipants as number) ?? 10} participants
+                  </span>
+                </div>
+              </div>
+              <Separator />
+              <div>
+                <h4 className="font-medium text-sm mb-2">Participants</h4>
+                {(detailSession.participants as SessionParticipant[])?.length > 0 ? (
+                  <ul className="space-y-2">
+                    {(detailSession.participants as SessionParticipant[]).map((p) => (
+                      <li key={p.id} className="flex items-center gap-2 text-sm">
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-xs">
+                            {p.user?.displayName?.charAt(0)?.toUpperCase() || "?"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{p.user?.displayName || "Student"}</span>
+                        <Badge variant={p.status === "accepted" ? "secondary" : "outline"} className="text-xs">
+                          {p.status}
+                        </Badge>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No participants yet.</p>
+                )}
+              </div>
+              <Separator />
+              <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                {detailSession.creatorId === user?.id && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const id = detailSessionId!;
+                      closeSessionDetail();
+                      setInviteSessionId(id);
+                      openInvite({ id } as Session);
+                    }}
+                  >
+                    Invite people
+                  </Button>
+                )}
+                {detailSession.creatorId !== user?.id &&
+                  !(detailSession.participants as unknown[])?.some((p: { userId: string }) => p.userId === user?.id) &&
+                  ((detailSession.participants as unknown[])?.length ?? 0) < (detailSession.maxParticipants as number) && (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        handleJoin(detailSessionId!);
+                        closeSessionDetail();
+                      }}
+                    >
+                      Join session
+                    </Button>
+                  )}
+                {(detailSession.participants as unknown[])?.some((p: { userId: string }) => p.userId === user?.id) && detailSession.creatorId !== user?.id && (
+                  <Badge>You joined</Badge>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Could not load session.</p>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!inviteSessionId} onOpenChange={(open) => !open && setInviteSessionId(null)}>
         <DialogContent>
