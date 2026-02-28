@@ -83,6 +83,12 @@ export const api = {
   getGcalAuthUrl: () =>
     fetchAPI<{ redirectUrl: string }>("/api/gcal/auth"),
 
+  // Courses (with grades from extension sync)
+  getCourses: () =>
+    fetchAPI<{
+      courses: { id: string; name: string | null; code: string | null; term: string | null; currentGrade: string | null; currentScore: number | null }[];
+    }>("/api/courses"),
+
   // Assignments
   getUpcomingAssignments: () =>
     fetchAPI<{ assignments: Record<string, unknown>[] }>("/api/assignments/upcoming"),
@@ -204,4 +210,9 @@ export const api = {
     fetchAPI<{ success: boolean; synced: { events: number; total: number } }>("/api/sync/nvolveu", {
       method: "POST",
     }),
+  clearDemoData: () =>
+    fetchAPI<{ message: string; cleared: Record<string, unknown> }>(
+      "/api/seed/clear",
+      { method: "POST" }
+    ),
 };

@@ -52,24 +52,46 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Grade trends: recent grade history grouped by course
+    // Grade trends: start from user's courses (so we show current grade from extension sync)
+    const userCourses = await prisma.course.findMany({
+      where: { userId: user.id },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        currentGrade: true,
+        currentScore: true,
+      },
+    });
+
     const gradeHistory = await prisma.gradeHistory.findMany({
       where: { userId: user.id },
-      include: { course: { select: { name: true, code: true } } },
       orderBy: { recordedAt: "asc" },
     });
 
     const gradeTrends: Record<
       string,
-      { courseName: string | null; courseCode: string | null; grades: { score: number | null; pointsPossible: number | null; recordedAt: Date }[] }
+      {
+        courseName: string | null;
+        courseCode: string | null;
+        currentGrade: string | null;
+        currentScore: number | null;
+        grades: { score: number | null; pointsPossible: number | null; recordedAt: Date }[];
+      }
     > = {};
+
+    for (const c of userCourses) {
+      gradeTrends[c.id] = {
+        courseName: c.name,
+        courseCode: c.code,
+        currentGrade: c.currentGrade,
+        currentScore: c.currentScore != null ? Number(c.currentScore) : null,
+        grades: [],
+      };
+    }
     for (const g of gradeHistory) {
       if (!gradeTrends[g.courseId]) {
-        gradeTrends[g.courseId] = {
-          courseName: g.course.name,
-          courseCode: g.course.code,
-          grades: [],
-        };
+        continue;
       }
       gradeTrends[g.courseId].grades.push({
         score: g.score ? Number(g.score) : null,
