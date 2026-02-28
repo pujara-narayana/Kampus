@@ -17,6 +17,8 @@ model User {
   googleId    String?  @map("google_id") @db.VarChar(100)
   googleToken Json?    @map("google_token")
   password    String?
+  provider    String?  @db.VarChar(20) // "cas", "email", etc.
+  canvasToken String?  @map("canvas_token") // Canvas personal access token
   createdAt   DateTime @default(now()) @map("created_at")
   lastSyncAt  DateTime? @map("last_sync_at")
   settings    Json     @default("{}")

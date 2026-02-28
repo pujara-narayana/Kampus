@@ -513,9 +513,9 @@ export default function SessionsPage() {
                         timeStyle: "short",
                       })
                       : "—"}
-                    {detailSession.endTime && (
+                    {detailSession.endTime ? (
                       <> – {new Date(detailSession.endTime as string).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>
-                    )}
+                    ) : null}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

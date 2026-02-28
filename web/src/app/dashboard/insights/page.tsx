@@ -14,7 +14,13 @@ interface PatternData {
   eventsAttended: number;
   freeFoodEvents: number;
   streaks: { type: string; currentCount: number; longestCount: number }[];
-  gradeTrends: { courseName: string; currentScore: number }[];
+  gradeTrends: {
+    courseName: string | null;
+    courseCode: string | null;
+    currentGrade: string | null;
+    currentScore: number | null;
+    grades: { score: number | null; pointsPossible: number | null; recordedAt: Date }[];
+  }[];
 }
 
 interface WeeklyData {
@@ -212,7 +218,7 @@ export default function InsightsPage() {
           <CardContent>
             {!patterns?.gradeTrends?.length ? (
               <p className="text-sm text-muted-foreground py-4 text-center">
-                No grade data yet. Sync your Canvas data.
+                No grade data yet. Sync your Canvas data via the extension.
               </p>
             ) : (
               <div className="space-y-3">
@@ -221,15 +227,30 @@ export default function InsightsPage() {
                     key={i}
                     className="flex items-center justify-between rounded-lg border p-3"
                   >
-                    <p className="font-medium text-sm">{course.courseName}</p>
+                    <p className="font-medium text-sm">
+                      {course.courseName || course.courseCode || "Course"}
+                    </p>
                     <div className="flex items-center gap-2">
-                      <Progress
-                        value={course.currentScore}
-                        className="w-20"
-                      />
-                      <span className="text-sm font-medium w-12 text-right">
-                        {course.currentScore?.toFixed(1)}%
-                      </span>
+                      {course.currentScore != null && (
+                        <>
+                          <Progress
+                            value={course.currentScore}
+                            className="w-20"
+                          />
+                          <span className="text-sm font-medium w-12 text-right">
+                            {course.currentScore.toFixed(1)}%
+                          </span>
+                        </>
+                      )}
+                      {course.currentGrade != null && (
+                        <Badge variant="secondary">{course.currentGrade}</Badge>
+                      )}
+                      {course.currentGrade == null &&
+                        course.currentScore == null && (
+                          <span className="text-xs text-muted-foreground">
+                            —
+                          </span>
+                        )}
                     </div>
                   </div>
                 ))}

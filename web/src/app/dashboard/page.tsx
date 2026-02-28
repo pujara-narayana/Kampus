@@ -10,26 +10,38 @@ import { toast } from "sonner";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+interface CourseWithGrade {
+  id: string;
+  name: string | null;
+  code: string | null;
+  term: string | null;
+  currentGrade: string | null;
+  currentScore: number | null;
+}
+
 interface DashboardData {
   upcomingAssignments: any[];
   upcomingEvents: any[];
   activeSessions: any[];
   notifications: any[];
+  courses: CourseWithGrade[];
 }
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   async function loadData() {
     try {
-      const [assignmentsRes, eventsRes, sessionsRes, notifRes] =
+      const [assignmentsRes, eventsRes, sessionsRes, notifRes, coursesRes] =
         await Promise.allSettled([
           api.getUpcomingAssignments(),
           api.getEvents(),
           api.getSessions(),
           api.getNotifications(),
+          api.getCourses(),
         ]);
 
       setData({
@@ -48,6 +60,10 @@ export default function DashboardPage() {
         notifications:
           notifRes.status === "fulfilled"
             ? (notifRes.value.notifications ?? [])
+            : [],
+        courses:
+          coursesRes.status === "fulfilled"
+            ? (coursesRes.value.courses ?? [])
             : [],
       });
     } catch {
@@ -75,6 +91,20 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleClearDemo() {
+    setClearing(true);
+    try {
+      await api.clearDemoData();
+      toast.success("Demo data removed. Refreshing...");
+      setLoading(true);
+      await loadData();
+    } catch {
+      toast.error("Failed to remove demo data");
+    } finally {
+      setClearing(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -86,8 +116,12 @@ export default function DashboardPage() {
   const assignments = data?.upcomingAssignments || [];
   const events = data?.upcomingEvents || [];
   const sessions = data?.activeSessions || [];
+  const courses = data?.courses || [];
   const unreadNotifs = (data?.notifications || []).filter((n: any) => !n.read);
   const freeFoodEvents = events.filter((e: any) => e.hasFreeFood);
+  const coursesWithGrades = courses.filter(
+    (c: CourseWithGrade) => c.currentGrade != null || c.currentScore != null
+  );
 
   return (
     <div className="space-y-6">
@@ -98,9 +132,19 @@ export default function DashboardPage() {
             Your campus life, unified. Never miss free food again.
           </p>
         </div>
-        <Button onClick={handleSeed} disabled={seeding} variant="outline">
-          {seeding ? "Seeding..." : "🌱 Load Demo Data"}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleSeed} disabled={seeding} variant="outline">
+            {seeding ? "Seeding..." : "🌱 Load Demo Data"}
+          </Button>
+          <Button
+            onClick={handleClearDemo}
+            disabled={clearing}
+            variant="outline"
+            className="text-muted-foreground hover:text-destructive"
+          >
+            {clearing ? "Clearing..." : "Remove Demo Data"}
+          </Button>
+        </div>
       </div>
 
       {/* Stats Row */}
@@ -178,6 +222,59 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Course Grades (synced by extension) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Course Grades</span>
+            <Link href="/dashboard/insights">
+              <Button variant="ghost" size="sm">
+                Insights
+              </Button>
+            </Link>
+          </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {courses.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No courses yet. Sync from Canvas via the extension.
+              </p>
+            ) : coursesWithGrades.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                Grades will appear here after the extension syncs from Canvas.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {coursesWithGrades.map((c: CourseWithGrade) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center justify-between rounded-lg border p-3"
+                  >
+                    <div>
+                      <p className="font-medium text-sm">
+                        {c.name || c.code || "Course"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {c.code || ""} {c.term ? `· ${c.term}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {c.currentGrade != null && (
+                        <Badge variant="secondary">{c.currentGrade}</Badge>
+                      )}
+                      {c.currentScore != null && (
+                        <span className="text-sm font-medium tabular-nums">
+                          {c.currentScore.toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Upcoming Assignments */}

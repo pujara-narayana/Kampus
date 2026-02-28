@@ -117,6 +117,12 @@ export const api = {
   getGcalAuthUrl: () =>
     fetchAPI<{ redirectUrl: string }>("/api/gcal/auth"),
 
+  // Courses (with grades from extension sync)
+  getCourses: () =>
+    fetchAPI<{
+      courses: { id: string; name: string | null; code: string | null; term: string | null; currentGrade: string | null; currentScore: number | null }[];
+    }>("/api/courses"),
+
   // Assignments
   getUpcomingAssignments: () =>
     fetchAPI<{ assignments: Record<string, unknown>[] }>("/api/assignments/upcoming"),
@@ -241,4 +247,30 @@ export const api = {
 
   // Seed
   seed: () => fetchAPI<Record<string, unknown>>("/api/seed", { method: "POST" }),
+
+  // Canvas Token
+  saveCanvasToken: (token: string) =>
+    fetchAPI<{ success: boolean; message: string }>("/api/settings/canvas-token", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
+  deleteCanvasToken: () =>
+    fetchAPI<{ success: boolean; message: string }>("/api/settings/canvas-token", {
+      method: "DELETE",
+    }),
+
+  // Server-side sync
+  syncCanvas: () =>
+    fetchAPI<{ success: boolean; synced: { courses: number; assignments: number; grades: number } }>("/api/sync/canvas", {
+      method: "POST",
+    }),
+  syncNvolveu: () =>
+    fetchAPI<{ success: boolean; synced: { events: number; total: number } }>("/api/sync/nvolveu", {
+      method: "POST",
+    }),
+  clearDemoData: () =>
+    fetchAPI<{ message: string; cleared: Record<string, unknown> }>(
+      "/api/seed/clear",
+      { method: "POST" }
+    ),
 };

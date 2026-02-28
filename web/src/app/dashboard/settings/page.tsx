@@ -11,7 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api-client";
 import { toast } from "sonner";
 
@@ -23,6 +24,51 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
   const [sessionVisibility, setSessionVisibility] = useState<SessionVisibility>("all");
   const [settingsLoading, setSettingsLoading] = useState(true);
+  const [canvasToken, setCanvasToken] = useState("");
+  const [savingCanvas, setSavingCanvas] = useState(false);
+  const [syncingCanvas, setSyncingCanvas] = useState(false);
+  const [syncingNvolveu, setSyncingNvolveu] = useState(false);
+
+  async function handleSaveCanvasToken() {
+    if (!canvasToken.trim()) return;
+    setSavingCanvas(true);
+    try {
+      await api.saveCanvasToken(canvasToken.trim());
+      toast.success("Canvas token saved and validated!");
+      setCanvasToken("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save Canvas token");
+    } finally {
+      setSavingCanvas(false);
+    }
+  }
+
+  async function handleCanvasSync() {
+    setSyncingCanvas(true);
+    try {
+      const res = await api.syncCanvas();
+      const synced = (res as any).synced;
+      toast.success(`Synced ${synced?.courses || 0} courses, ${synced?.assignments || 0} assignments, ${synced?.grades || 0} grades`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Canvas sync failed");
+    } finally {
+      setSyncingCanvas(false);
+    }
+  }
+
+  async function handleNvolveuSync() {
+    setSyncingNvolveu(true);
+    try {
+      const res = await api.syncNvolveu();
+      const synced = (res as any).synced;
+      toast.success(`Synced ${synced?.events || 0} campus events`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "NvolveU sync failed");
+    } finally {
+      setSyncingNvolveu(false);
+    }
+  }
+
   const [savingVisibility, setSavingVisibility] = useState(false);
 
   useEffect(() => {
@@ -33,7 +79,7 @@ export default function SettingsPage() {
     api
       .getSettings()
       .then((res) => setSessionVisibility(res.sessionVisibility ?? "all"))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setSettingsLoading(false));
   }, []);
 
@@ -166,29 +212,66 @@ export default function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Account</CardTitle>
+          <CardTitle>Canvas Integration</CardTitle>
           <CardDescription>
-            Your profile and connected services.
+            Connect your Canvas account to sync courses, assignments, and grades without the extension.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between py-2">
-            <div>
-              <p className="font-medium text-sm">Google Calendar</p>
-              <p className="text-xs text-muted-foreground">
-                Connect your calendar in the Calendar page to sync events.
-              </p>
+          <div className="space-y-2">
+            <Label htmlFor="canvasToken">Canvas Access Token</Label>
+            <div className="flex gap-2">
+              <Input
+                id="canvasToken"
+                type="password"
+                placeholder="Paste your Canvas token here"
+                value={canvasToken}
+                onChange={(e) => setCanvasToken(e.target.value)}
+                className="flex-1"
+              />
+              <Button
+                onClick={handleSaveCanvasToken}
+                disabled={savingCanvas || !canvasToken.trim()}
+                size="sm"
+              >
+                {savingCanvas ? "Saving..." : "Save"}
+              </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Generate a token at{" "}
+              <a
+                href="https://canvas.unl.edu/profile/settings"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-blue-500"
+              >
+                canvas.unl.edu/profile/settings
+              </a>
+              {" "}→ New Access Token.
+            </p>
           </div>
-          <Separator />
-          <div className="flex items-center justify-between py-2">
-            <div>
-              <p className="font-medium text-sm">Canvas / Extension</p>
-              <p className="text-xs text-muted-foreground">
-                Use the Kampus extension to sync assignments and schedule.
-              </p>
-            </div>
+          <div className="border-t pt-3 mt-3" />
+          <div className="flex gap-2">
+            <Button
+              onClick={handleCanvasSync}
+              disabled={syncingCanvas}
+              variant="outline"
+              size="sm"
+            >
+              {syncingCanvas ? "Syncing Canvas..." : "🔄 Sync Canvas Now"}
+            </Button>
+            <Button
+              onClick={handleNvolveuSync}
+              disabled={syncingNvolveu}
+              variant="outline"
+              size="sm"
+            >
+              {syncingNvolveu ? "Syncing Events..." : "🎉 Sync Campus Events"}
+            </Button>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Canvas sync pulls all courses, assignments, and grades. Events sync fetches UNL campus events (no token needed).
+          </p>
         </CardContent>
       </Card>
     </div>
