@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kampus</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      width: 340px;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    .header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .header .badge {
+      font-size: 10px;
+      background: #3b82f6;
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .status-banner {
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .status-banner.synced { background: rgba(34,197,94,0.1); color: #4ade80; }
+    .status-banner.syncing { background: rgba(59,130,246,0.1); color: #60a5fa; }
+    .status-banner.error { background: rgba(239,68,68,0.1); color: #f87171; }
+    .status-banner.idle { background: rgba(148,163,184,0.1); color: #94a3b8; }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .status-dot.synced { background: #4ade80; }
+    .status-dot.syncing { background: #60a5fa; animation: pulse 1.5s infinite; }
+    .status-dot.error { background: #f87171; }
+    .status-dot.idle { background: #94a3b8; }
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+    .section {
+      padding: 14px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .section-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #64748b;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .sync-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      font-size: 13px;
+    }
+    .sync-row .source { color: #cbd5e1; }
+    .sync-row .time { color: #64748b; font-size: 12px; }
+
+    .actions {
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.15s ease;
+    }
+    .btn-primary {
+      background: #3b82f6;
+      color: #fff;
+    }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-primary:disabled { background: #1e40af; opacity: 0.6; cursor: not-allowed; }
+    .btn-secondary {
+      background: rgba(255,255,255,0.05);
+      color: #94a3b8;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+
+    .footer {
+      padding: 12px 20px;
+      text-align: center;
+      font-size: 11px;
+      color: #475569;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Kampus</h1>
+    <span class="badge">UNL</span>
+  </div>
+
+  <div id="statusBanner" class="status-banner idle">
+    <span id="statusDot" class="status-dot idle"></span>
+    <span id="statusText">Checking status...</span>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Last Synced</div>
+    <div id="syncTimes">
+      <div class="sync-row">
+        <span class="source">📝 Canvas</span>
+        <span class="time" id="canvasTime">—</span>
+      </div>
+      <div class="sync-row">
+        <span class="source">📅 MyRed</span>
+        <span class="time" id="myredTime">—</span>
+      </div>
+      <div class="sync-row">
+        <span class="source">🎉 NvolveU</span>
+        <span class="time" id="nvolveuTime">—</span>
+      </div>
+      <div class="sync-row">
+        <span class="source">📊 Grades</span>
+        <span class="time" id="gradesTime">—</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="syncBtn">
+      🔄 Sync Now
+    </button>
+    <button class="btn btn-secondary" id="openApp">
+      🌐 Open Kampus Web App
+    </button>
+  </div>
+
+  <div class="footer">
+    Your campus life, unified. 🍕
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

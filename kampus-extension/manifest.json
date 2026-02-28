@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "Kampus",
+  "version": "1.0.0",
+  "description": "Your campus life, unified. Syncs Canvas, MyRed, and NvolveU data to the Kampus platform.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "alarms",
+    "tabs",
+    "cookies"
+  ],
+  "host_permissions": [
+    "https://canvas.unl.edu/*",
+    "https://myred.unl.edu/*",
+    "https://unl.campuslabs.com/*",
+    "https://events.unl.edu/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://canvas.unl.edu/*"],
+      "js": ["content-scripts/canvas.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://myred.unl.edu/*"],
+      "js": ["content-scripts/myred.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://unl.campuslabs.com/*"],
+      "js": ["content-scripts/nvolveu.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    },
+    "default_title": "Kampus"
+  }
+}

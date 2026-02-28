@@ -1,0 +1,349 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          String   @id @default(uuid())
+  nuid        String?  @unique @db.VarChar(8)
+  displayName String?  @map("display_name") @db.VarChar(100)
+  email       String?  @db.VarChar(100)
+  avatarUrl   String?  @map("avatar_url")
+  googleId    String?  @map("google_id") @db.VarChar(100)
+  googleToken Json?    @map("google_token")
+  password    String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  lastSyncAt  DateTime? @map("last_sync_at")
+  settings    Json     @default("{}")
+
+  courses            Course[]
+  assignments        Assignment[]
+  classSchedules     ClassSchedule[]
+  gradeHistory       GradeHistory[]
+  studySessions      StudySession[]     @relation("SessionCreator")
+  sessionParticipations SessionParticipant[]
+  userCourseLinks    UserCourseLink[]
+  sentConnections    Connection[]       @relation("Requester")
+  receivedConnections Connection[]      @relation("Receiver")
+  feedItems          FeedItem[]
+  notifications      Notification[]
+  assignmentBehaviors AssignmentBehavior[]
+  weeklySummaries    WeeklySummary[]
+  streaks            Streak[]
+  locationLogs       LocationLog[]
+  walkingHistoryFrom WalkingHistory[]   @relation("WalkFrom")
+  walkingHistoryTo   WalkingHistory[]   @relation("WalkTo")
+
+  @@map("users")
+}
+
+model Course {
+  id           String   @id @default(uuid())
+  canvasId     BigInt   @map("canvas_id")
+  userId       String   @map("user_id")
+  name         String?  @db.VarChar(200)
+  code         String?  @db.VarChar(50)
+  term         String?  @db.VarChar(50)
+  currentGrade String?  @map("current_grade") @db.VarChar(5)
+  currentScore Decimal? @map("current_score") @db.Decimal(5, 2)
+  syncedAt     DateTime @default(now()) @map("synced_at")
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignments     Assignment[]
+  gradeHistory    GradeHistory[]
+  studySessions   StudySession[]
+  userCourseLinks UserCourseLink[]
+
+  @@unique([canvasId, userId])
+  @@map("courses")
+}
+
+model Assignment {
+  id              String    @id @default(uuid())
+  canvasId        BigInt    @map("canvas_id")
+  courseId         String    @map("course_id")
+  userId          String    @map("user_id")
+  name            String?   @db.VarChar(500)
+  description     String?
+  dueAt           DateTime? @map("due_at")
+  pointsPossible  Decimal?  @map("points_possible") @db.Decimal(8, 2)
+  submissionTypes String[]  @map("submission_types")
+  hasSubmitted    Boolean   @default(false) @map("has_submitted")
+  score           Decimal?  @db.Decimal(8, 2)
+  submittedAt     DateTime? @map("submitted_at")
+  estimatedHours  Decimal?  @map("estimated_hours") @db.Decimal(4, 1)
+  actualHours     Decimal?  @map("actual_hours") @db.Decimal(4, 1)
+  htmlUrl         String?   @map("html_url")
+  syncedAt        DateTime  @default(now()) @map("synced_at")
+
+  course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gradeHistory    GradeHistory[]
+  studySessions   StudySession[]
+  behaviors       AssignmentBehavior[]
+
+  @@unique([canvasId, userId])
+  @@map("assignments")
+}
+
+model ClassSchedule {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  courseCode   String?  @map("course_code") @db.VarChar(50)
+  courseTitle  String?  @map("course_title") @db.VarChar(200)
+  days        String?  @db.VarChar(10)
+  startTime   String?  @map("start_time")
+  endTime     String?  @map("end_time")
+  building    String?  @db.VarChar(100)
+  room        String?  @db.VarChar(20)
+  buildingLat Decimal? @map("building_lat") @db.Decimal(9, 6)
+  buildingLng Decimal? @map("building_lng") @db.Decimal(9, 6)
+  instructor  String?  @db.VarChar(100)
+  term        String?  @db.VarChar(50)
+  syncedAt    DateTime @default(now()) @map("synced_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("class_schedule")
+}
+
+model GradeHistory {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  courseId        String   @map("course_id")
+  assignmentId   String?  @map("assignment_id")
+  score          Decimal? @db.Decimal(8, 2)
+  pointsPossible Decimal? @map("points_possible") @db.Decimal(8, 2)
+  recordedAt     DateTime @default(now()) @map("recorded_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  assignment Assignment? @relation(fields: [assignmentId], references: [id])
+
+  @@map("grade_history")
+}
+
+model Event {
+  id          String    @id @default(uuid())
+  source      String    @db.VarChar(20)
+  sourceId    String?   @map("source_id") @db.VarChar(100)
+  title       String?   @db.VarChar(500)
+  description String?
+  startTime   DateTime? @map("start_time")
+  endTime     DateTime? @map("end_time")
+  building    String?   @db.VarChar(100)
+  room        String?   @db.VarChar(50)
+  address     String?
+  lat         Decimal?  @db.Decimal(9, 6)
+  lng         Decimal?  @db.Decimal(9, 6)
+  hasFreeFood Boolean   @default(false) @map("has_free_food")
+  foodDetails String?   @map("food_details")
+  eventType   String?   @map("event_type") @db.VarChar(50)
+  orgName     String?   @map("org_name") @db.VarChar(200)
+  eventUrl    String?   @map("event_url")
+  scrapedAt   DateTime  @default(now()) @map("scraped_at")
+
+  @@unique([source, sourceId])
+  @@map("events")
+}
+
+model CampusBuilding {
+  id        String  @id @default(uuid())
+  name      String  @unique @db.VarChar(100)
+  shortName String? @map("short_name") @db.VarChar(20)
+  lat       Decimal @db.Decimal(9, 6)
+  lng       Decimal @db.Decimal(9, 6)
+  address   String?
+
+  locationLogs       LocationLog[]
+  walkingHistoryFrom WalkingHistory[] @relation("BuildingFrom")
+  walkingHistoryTo   WalkingHistory[] @relation("BuildingTo")
+
+  @@map("campus_buildings")
+}
+
+model LocationLog {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  buildingId String?   @map("building_id")
+  source     String?   @db.VarChar(20)
+  arrivedAt  DateTime? @map("arrived_at")
+  departedAt DateTime? @map("departed_at")
+  dayOfWeek  Int?      @map("day_of_week") @db.SmallInt
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  building CampusBuilding? @relation(fields: [buildingId], references: [id])
+
+  @@map("location_log")
+}
+
+model WalkingHistory {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  fromBuildingId  String    @map("from_building")
+  toBuildingId    String    @map("to_building")
+  departedAt      DateTime? @map("departed_at")
+  arrivedAt       DateTime? @map("arrived_at")
+  distanceMeters  Int?      @map("distance_meters")
+  durationMinutes Decimal?  @map("duration_minutes") @db.Decimal(4, 1)
+
+  user         User           @relation("WalkFrom", fields: [userId], references: [id], onDelete: Cascade, map: "walking_history_user_from_fkey")
+  userTo       User           @relation("WalkTo", fields: [userId], references: [id], onDelete: Cascade, map: "walking_history_user_to_fkey")
+  fromBuilding CampusBuilding @relation("BuildingFrom", fields: [fromBuildingId], references: [id])
+  toBuilding   CampusBuilding @relation("BuildingTo", fields: [toBuildingId], references: [id])
+
+  @@map("walking_history")
+}
+
+model StudySession {
+  id              String   @id @default(uuid())
+  creatorId       String   @map("creator_id")
+  title           String?  @db.VarChar(200)
+  description     String?
+  courseId         String?  @map("course_id")
+  assignmentId    String?  @map("assignment_id")
+  building        String?  @db.VarChar(100)
+  room            String?  @db.VarChar(50)
+  lat             Decimal? @db.Decimal(9, 6)
+  lng             Decimal? @db.Decimal(9, 6)
+  startTime       DateTime? @map("start_time")
+  endTime         DateTime? @map("end_time")
+  maxParticipants Int      @default(10) @map("max_participants")
+  isPublic        Boolean  @default(true) @map("is_public")
+  status          String   @default("upcoming") @db.VarChar(20)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  creator      User                 @relation("SessionCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  course       Course?              @relation(fields: [courseId], references: [id])
+  assignment   Assignment?          @relation(fields: [assignmentId], references: [id])
+  participants SessionParticipant[]
+
+  @@map("study_sessions")
+}
+
+model SessionParticipant {
+  id          String    @id @default(uuid())
+  sessionId   String    @map("session_id")
+  userId      String    @map("user_id")
+  status      String    @default("invited") @db.VarChar(20)
+  invitedAt   DateTime  @default(now()) @map("invited_at")
+  respondedAt DateTime? @map("responded_at")
+
+  session StudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+  @@map("session_participants")
+}
+
+model UserCourseLink {
+  userId         String @map("user_id")
+  courseId        String @map("course_id")
+  canvasCourseId BigInt? @map("canvas_course_id")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([userId, courseId])
+  @@map("user_course_links")
+}
+
+model Connection {
+  id          String   @id @default(uuid())
+  requesterId String  @map("requester_id")
+  receiverId  String  @map("receiver_id")
+  status      String  @default("pending") @db.VarChar(20)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  requester User @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  receiver  User @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, receiverId])
+  @@map("connections")
+}
+
+model FeedItem {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  type       String   @db.VarChar(30)
+  data       Json?
+  visibility String   @default("friends") @db.VarChar(20)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("feed_items")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  type      String   @db.VarChar(30)
+  title     String?  @db.VarChar(200)
+  body      String?
+  data      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model AssignmentBehavior {
+  id                   String    @id @default(uuid())
+  userId               String    @map("user_id")
+  assignmentId         String?   @map("assignment_id")
+  firstViewedAt        DateTime? @map("first_viewed_at")
+  startedAt            DateTime? @map("started_at")
+  submittedAt          DateTime? @map("submitted_at")
+  dueAt                DateTime? @map("due_at")
+  daysBeforeDue        Decimal?  @map("days_before_due") @db.Decimal(4, 1)
+  estimatedHours       Decimal?  @map("estimated_hours") @db.Decimal(4, 1)
+  actualHours          Decimal?  @map("actual_hours") @db.Decimal(4, 1)
+  procrastinationScore Decimal?  @map("procrastination_score") @db.Decimal(3, 2)
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignment Assignment? @relation(fields: [assignmentId], references: [id])
+
+  @@map("assignment_behavior")
+}
+
+model WeeklySummary {
+  id                    String   @id @default(uuid())
+  userId                String   @map("user_id")
+  weekStart             DateTime @map("week_start") @db.Date
+  totalAssignmentsDue   Int?     @map("total_assignments_due")
+  assignmentsCompleted  Int?     @map("assignments_completed")
+  avgDaysBeforeDue      Decimal? @map("avg_days_before_due") @db.Decimal(4, 1)
+  totalStudyHours       Decimal? @map("total_study_hours") @db.Decimal(5, 1)
+  studySessionsAttended Int?     @map("study_sessions_attended")
+  eventsAttended        Int?     @map("events_attended")
+  freeFoodEvents        Int?     @map("free_food_events")
+  campusBuildingsVisited Int?    @map("campus_buildings_visited")
+  aiSummary             String?  @map("ai_summary")
+  generatedAt           DateTime @default(now()) @map("generated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@map("weekly_summaries")
+}
+
+model Streak {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  type         String?  @db.VarChar(30)
+  currentCount Int      @default(0) @map("current_count")
+  longestCount Int      @default(0) @map("longest_count")
+  lastActivity DateTime? @map("last_activity") @db.Date
+  startedAt    DateTime? @map("started_at") @db.Date
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("streaks")
+}
