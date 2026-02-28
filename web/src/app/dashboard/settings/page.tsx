@@ -28,6 +28,7 @@ export default function SettingsPage() {
   const [savingCanvas, setSavingCanvas] = useState(false);
   const [syncingCanvas, setSyncingCanvas] = useState(false);
   const [syncingNvolveu, setSyncingNvolveu] = useState(false);
+  const [syncingMyred, setSyncingMyred] = useState(false);
 
   async function handleSaveCanvasToken() {
     if (!canvasToken.trim()) return;
@@ -66,6 +67,20 @@ export default function SettingsPage() {
       toast.error(err instanceof Error ? err.message : "NvolveU sync failed");
     } finally {
       setSyncingNvolveu(false);
+    }
+  }
+
+  async function handleMyredSync() {
+    setSyncingMyred(true);
+    try {
+      // Send command to extension via content script bridge
+      window.postMessage({ type: 'KAMPUS_COMMAND', command: 'TRIGGER_MYRED_SYNC' }, '*');
+      toast.success("MyRed sync started! A background tab will open to scrape your schedule.");
+      // Wait a bit then reset
+      setTimeout(() => setSyncingMyred(false), 5000);
+    } catch {
+      toast.error("Make sure the Kampus extension is installed.");
+      setSyncingMyred(false);
     }
   }
 
@@ -218,8 +233,22 @@ export default function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="canvasToken">Canvas Access Token</Label>
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Step 1: Generate a token</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => window.open("https://canvas.unl.edu/profile/settings#access_tokens_holder", "_blank")}
+            >
+              🔑 Open Canvas Settings → Generate Token
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Click &quot;+ New Access Token&quot;, give it any name (e.g. &quot;Kampus&quot;), then copy the token shown.
+            </p>
+          </div>
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Step 2: Paste it here</p>
             <div className="flex gap-2">
               <Input
                 id="canvasToken"
@@ -237,18 +266,6 @@ export default function SettingsPage() {
                 {savingCanvas ? "Saving..." : "Save"}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Generate a token at{" "}
-              <a
-                href="https://canvas.unl.edu/profile/settings"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline text-blue-500"
-              >
-                canvas.unl.edu/profile/settings
-              </a>
-              {" "}→ New Access Token.
-            </p>
           </div>
           <div className="border-t pt-3 mt-3" />
           <div className="flex gap-2">
@@ -268,9 +285,17 @@ export default function SettingsPage() {
             >
               {syncingNvolveu ? "Syncing Events..." : "🎉 Sync Campus Events"}
             </Button>
+            <Button
+              onClick={handleMyredSync}
+              disabled={syncingMyred}
+              variant="outline"
+              size="sm"
+            >
+              {syncingMyred ? "Opening MyRed..." : "📅 Sync MyRed Schedule"}
+            </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Canvas sync pulls all courses, assignments, and grades. Events sync fetches UNL campus events (no token needed).
+            Canvas sync pulls courses, assignments, and grades. Events sync fetches UNL campus events. MyRed sync opens your schedule page via the extension (requires extension + UNL login).
           </p>
         </CardContent>
       </Card>

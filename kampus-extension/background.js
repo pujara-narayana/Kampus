@@ -190,6 +190,67 @@ async function handleMessage(message, sender) {
       console.log(`[Kampus] API base updated to ${message.apiBase}`);
       return { success: true };
 
+    // MyRed content script detected user identity — auto-register/login
+    case 'MYRED_USER_DETECTED':
+      console.log('[Kampus] MyRed user identity detected:', message.data);
+      try {
+        const regApiBase = (await chrome.storage.local.get('kampusApiBase')).kampusApiBase || 'http://localhost:3000';
+        const regResponse = await fetch(`${regApiBase}/api/auth/extension-register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(message.data),
+        });
+        if (regResponse.ok) {
+          const regResult = await regResponse.json();
+          await chrome.storage.local.set({
+            kampusToken: regResult.token,
+            kampusUser: JSON.stringify(regResult.user),
+          });
+          console.log('[Kampus] Auto-registered from MyRed:', regResult.user?.email || regResult.user?.displayName);
+
+          // Close the MyRed popup/tab after successful registration
+          if (sender && sender.tab && sender.tab.id) {
+            try {
+              await chrome.tabs.remove(sender.tab.id);
+              console.log('[Kampus] Closed MyRed popup tab.');
+            } catch (e) {
+              // Tab may already be closed
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[Kampus] MyRed auto-register failed:', err.message);
+      }
+      return { success: true };
+
+    // MyRed content script scraped academic profile (major, college, etc.)
+    case 'MYRED_PROFILE_SCRAPED':
+      console.log('[Kampus] MyRed academic profile scraped:', message.data);
+      try {
+        const profToken = (await chrome.storage.local.get('kampusToken')).kampusToken;
+        if (profToken) {
+          const profApiBase = (await chrome.storage.local.get('kampusApiBase')).kampusApiBase || 'http://localhost:3000';
+          await fetch(`${profApiBase}/api/sync/profile`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${profToken}`,
+            },
+            body: JSON.stringify(message.data),
+          });
+          console.log('[Kampus] Academic profile synced.');
+        }
+      } catch (err) {
+        console.warn('[Kampus] Profile sync failed:', err.message);
+      }
+      return { success: true };
+
+    // Website or popup requests a MyRed sync (opens bg tab)
+    case 'TRIGGER_MYRED_SYNC':
+      console.log('[Kampus] MyRed sync triggered from website/popup.');
+      await runMyRedScraper();
+      return { success: true };
+
     default:
       console.warn(`[Kampus] Unknown message type: ${message.type}`);
       return { success: false, error: 'Unknown message type' };
@@ -641,7 +702,7 @@ async function openBackgroundScraper(url, timeoutMs = 60000) {
 
 async function runMyRedScraper() {
   console.log('[Kampus] Launching autonomous MyRed scraper...');
-  const scheduleUrl = 'https://myred.nebraska.edu/psp/myred/NBL/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_LIST.GBL?Page=SSR_SSENRL_LIST';
+  const scheduleUrl = 'https://myred.nebraska.edu/psp/myred/NBL/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_LIST.GBL?Page=SSR_SSENRL_LIST&SPSrc=myred&IDPName=trueyou&GHInSess=1';
   await openBackgroundScraper(scheduleUrl, 60000); // 60s timeout
 }
 

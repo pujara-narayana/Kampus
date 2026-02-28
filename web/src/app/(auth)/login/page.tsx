@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -21,11 +21,28 @@ function LoginContent() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [connectingMyred, setConnectingMyred] = useState(false);
     const router = useRouter();
     const searchParams = useSearchParams();
     const { login } = useAuth();
 
     const casError = searchParams.get("error");
+
+    // Listen for extension auto-registration from MyRed
+    useEffect(() => {
+        function handleExtAuth(event: MessageEvent) {
+            if (event.data?.type === 'KAMPUS_EXT_AUTHENTICATED' && event.data.token) {
+                // Extension registered the user — store token and redirect
+                localStorage.setItem("kampus_token", event.data.token);
+                if (event.data.user) {
+                    localStorage.setItem("kampus_user", event.data.user);
+                }
+                router.push("/dashboard");
+            }
+        }
+        window.addEventListener('message', handleExtAuth);
+        return () => window.removeEventListener('message', handleExtAuth);
+    }, [router]);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -64,7 +81,7 @@ function LoginContent() {
                         </div>
                     )}
 
-                    {/* UNL SSO Button */}
+                    {/* UNL CAS SSO Login */}
                     <Button
                         type="button"
                         className="w-full bg-red-700 hover:bg-red-600 text-white font-semibold text-base py-5"
@@ -74,6 +91,9 @@ function LoginContent() {
                     >
                         🏛️ Sign in with UNL
                     </Button>
+                    <p className="text-xs text-center text-blue-200/40">
+                        Use your UNL ID to sign in via CAS single sign-on.
+                    </p>
 
                     <div className="relative">
                         <div className="absolute inset-0 flex items-center">

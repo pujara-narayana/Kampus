@@ -18,6 +18,9 @@ export async function GET(req: NextRequest) {
             displayName: user.displayName,
             nuid: user.nuid,
             avatarUrl: user.avatarUrl,
+            major: user.major,
+            college: user.college,
+            classLevel: user.classLevel,
         },
     });
 }

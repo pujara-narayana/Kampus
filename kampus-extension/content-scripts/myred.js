@@ -281,13 +281,160 @@
     }, 4000);
   }
 
+  /**
+   * Scrapes user identity from the MyRed page (name, NUID).
+   * MyRed/PeopleSoft shows the user's name in the header area.
+   */
+  function scrapeUserIdentity() {
+    const identity = { displayName: null, nuid: null, email: null };
+
+    // Try to get name from the greeting/header
+    // PeopleSoft typically shows "Welcome, First Last" or the name in a header element
+    const selectors = [
+      '#PT_GREETING',             // PeopleSoft greeting
+      '.PSGROUPBOXLABEL',         // PeopleSoft group box
+      '#pthdr2acttxt',            // PeopleSoft header text
+      '.PSLONGEDITBOX',           // Name fields
+      '#DERIVED_SSS_SCL_SSS_MORE_ACAD_REC_BTN', // Academic link with name
+    ];
+
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const text = el.textContent.trim();
+        // Look for greeting pattern: "Welcome, John Smith" or "John Smith"
+        const greetingMatch = text.match(/(?:welcome|hello|hi)[,\s]+(.+)/i);
+        if (greetingMatch) {
+          identity.displayName = greetingMatch[1].trim();
+          break;
+        }
+        // If it looks like a name (2-3 words, no numbers)
+        const nameMatch = text.match(/^([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})$/);
+        if (nameMatch) {
+          identity.displayName = nameMatch[1].trim();
+          break;
+        }
+      }
+    }
+
+    // Try to find NUID from the page (8-digit number)
+    const bodyText = document.body.innerText || '';
+    const nuidMatch = bodyText.match(/(?:NUID|Student\s*ID|ID)[:\s]*(\d{8})/i);
+    if (nuidMatch) {
+      identity.nuid = nuidMatch[1];
+    }
+
+    // Also try the URL for EMPLID (PeopleSoft employee/student ID)
+    const urlMatch = window.location.href.match(/EMPLID=(\d{8})/);
+    if (urlMatch && !identity.nuid) {
+      identity.nuid = urlMatch[1];
+    }
+
+    // Try to get from page title
+    if (!identity.displayName) {
+      const title = document.title || '';
+      // PeopleSoft titles sometimes include the user name
+      const titleNameMatch = title.match(/(?:for|of)\s+([A-Z][a-z]+\s+[A-Z][a-z]+)/);
+      if (titleNameMatch) {
+        identity.displayName = titleNameMatch[1];
+      }
+    }
+
+    return identity;
+  }
+
+  /**
+   * Scrapes academic profile info from MyRed (major, college, class level).
+   * PeopleSoft shows this on multiple pages in various label+value patterns.
+   */
+  function scrapeAcademicProfile() {
+    const profile = { major: null, college: null, classLevel: null };
+    const bodyText = document.body.innerText || '';
+
+    // Look for "Plan:" or "Major:" labels (PeopleSoft academic records)
+    const majorPatterns = [
+      /(?:Plan|Major|Program of Study)[:\s]+([^\n]+)/i,
+      /(?:Academic Plan)[:\s]+([^\n]+)/i,
+      /(?:Major Description)[:\s]+([^\n]+)/i,
+    ];
+    for (const pattern of majorPatterns) {
+      const match = bodyText.match(pattern);
+      if (match) {
+        profile.major = match[1].trim().substring(0, 200);
+        break;
+      }
+    }
+
+    // Look for college
+    const collegePatterns = [
+      /(?:College|Academic Group)[:\s]+([^\n]+)/i,
+      /(?:School)[:\s]+([^\n]+)/i,
+    ];
+    for (const pattern of collegePatterns) {
+      const match = bodyText.match(pattern);
+      if (match) {
+        profile.college = match[1].trim().substring(0, 200);
+        break;
+      }
+    }
+
+    // Look for class level (Freshman, Sophomore, Junior, Senior, Graduate)
+    const levelMatch = bodyText.match(/(?:Academic Level|Class Standing|Level)[:\s]*(Freshman|Sophomore|Junior|Senior|Graduate|Post-Baccalaureate)/i);
+    if (levelMatch) {
+      profile.classLevel = levelMatch[1].trim();
+    }
+
+    // Also try PeopleSoft table cell pairs (label in one cell, value in next)
+    const cells = document.querySelectorAll('td.PSEDITBOX_DISPONLY, td.PSLONGEDITBOX, span.PSEDITBOX_DISPONLY, span.PSLONGEDITBOX');
+    for (const cell of cells) {
+      const text = cell.textContent.trim();
+      if (!profile.major && /^(Computer Science|Engineering|Business|Biology|Chemistry|Physics|Mathematics|Psychology|English|History|Political Science)/i.test(text)) {
+        profile.major = text.substring(0, 200);
+      }
+    }
+
+    return profile;
+  }
+
   // -------------------------------------------------------------------------
   // Initialization
   // -------------------------------------------------------------------------
 
   function init() {
+    // Check if this is a login/SSO redirect page (skip those)
+    const url = window.location.href.toLowerCase();
+    const isLoginPage = url.includes('/signon') || url.includes('cmd=login') || url.includes('idp/profile') || url.includes('trueyou.unl.edu');
+
+    if (isLoginPage) {
+      console.log('[Kampus] MyRed: login/SSO page, skipping scrape.');
+      return;
+    }
+
+    // We're on a logged-in MyRed page — always send identity
+    const identity = scrapeUserIdentity();
+    // Even if we didn't find a name/NUID, the fact we're on MyRed means the user is authenticated
+    console.log('[Kampus] MyRed: user identity:', identity);
+    chrome.runtime.sendMessage({
+      type: 'MYRED_USER_DETECTED',
+      data: {
+        displayName: identity.displayName || 'UNL Student',
+        nuid: identity.nuid || null,
+        email: identity.email || null,
+      },
+    });
+
+    // Try to scrape academic profile info on any page
+    const profile = scrapeAcademicProfile();
+    if (profile.major || profile.college || profile.classLevel) {
+      console.log('[Kampus] MyRed: detected academic profile:', profile);
+      chrome.runtime.sendMessage({
+        type: 'MYRED_PROFILE_SCRAPED',
+        data: profile,
+      });
+    }
+
     if (!isSchedulePage()) {
-      console.log('[Kampus] MyRed: not a schedule page, skipping.');
+      console.log('[Kampus] MyRed: not a schedule page, skipping schedule scrape.');
       return;
     }
 

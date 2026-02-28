@@ -13,13 +13,15 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const ticket = searchParams.get("ticket");
 
+    // Use the actual request origin to handle dynamic ports
+    const origin = req.headers.get("x-forwarded-host") || req.headers.get("host") || "localhost:3000";
+    const protocol = req.headers.get("x-forwarded-proto") || "http";
+    const appUrl = `${protocol}://${origin}`;
+
     if (!ticket) {
-        return NextResponse.redirect(
-            `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/login?error=no_ticket`
-        );
+        return NextResponse.redirect(`${appUrl}/login?error=no_ticket`);
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const serviceUrl = `${appUrl}/api/auth/cas/callback`;
 
     // Validate ticket with UNL CAS server

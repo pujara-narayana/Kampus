@@ -19,6 +19,9 @@ model User {
   password    String?
   provider    String?  @db.VarChar(20) // "cas", "email", etc.
   canvasToken String?  @map("canvas_token") // Canvas personal access token
+  major       String?  @db.VarChar(200)
+  college     String?  @db.VarChar(200)
+  classLevel  String?  @map("class_level") @db.VarChar(30) // "Freshman", "Sophomore", etc.
   createdAt   DateTime @default(now()) @map("created_at")
   lastSyncAt  DateTime? @map("last_sync_at")
   settings    Json     @default("{}")
