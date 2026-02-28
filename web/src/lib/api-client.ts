@@ -43,7 +43,23 @@ export const api = {
     }),
 
   // Calendar
-  getCalendar: () => fetchAPI<{ events: Record<string, unknown>[] }>("/api/calendar"),
+  getCalendar: (from?: string, to?: string) => {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    const q = params.toString();
+    return fetchAPI<{
+      classes: Record<string, unknown>[];
+      assignments: Record<string, unknown>[];
+      events: Record<string, unknown>[];
+      studySessions: Record<string, unknown>[];
+      googleEvents?: { id: string; title: string; start: string; end?: string; htmlLink?: string }[];
+      googleConnected?: boolean;
+    }>(`/api/calendar${q ? `?${q}` : ""}`);
+  },
+  // Google Calendar OAuth — returns URL to redirect user to connect their calendar
+  getGcalAuthUrl: () =>
+    fetchAPI<{ redirectUrl: string }>("/api/gcal/auth"),
 
   // Assignments
   getUpcomingAssignments: () =>
