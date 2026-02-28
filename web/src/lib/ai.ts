@@ -59,8 +59,8 @@ export async function detectFreeFood(
       hasFreeFood: output.hasFreeFood || false,
       foodDetails: output.foodDetails || null,
     };
-  } catch (err) {
-    console.error("OpenAI detecting free food failed:", err);
+  } catch (err: any) {
+    console.error("OpenAI detecting free food failed:", err.message || err);
     return fallbackDetectFreeFood(rawText);
   }
 }

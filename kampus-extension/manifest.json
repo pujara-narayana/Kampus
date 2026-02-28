@@ -12,7 +12,10 @@
     "storage",
     "alarms",
     "tabs",
-    "cookies"
+    "cookies",
+    "notifications",
+    "geolocation",
+    "offscreen"
   ],
   "host_permissions": [
     "https://canvas.unl.edu/*",

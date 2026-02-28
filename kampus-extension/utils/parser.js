@@ -71,6 +71,7 @@ function parseCanvasAssignment(raw, courseId, courseName) {
     html_url: raw.html_url || '',
     lock_at: raw.lock_at || null,
     unlock_at: raw.unlock_at || null,
+    submitted_at: raw.submission ? raw.submission.submitted_at : null,
   };
 }
 

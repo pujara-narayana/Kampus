@@ -17,6 +17,7 @@ import {
   syncSchedule,
   syncGrades,
   syncNvolveUEvents,
+  syncLocation,
   getConfig,
 } from './utils/api.js';
 
@@ -38,6 +39,7 @@ const ALARM_CANVAS = 'canvas-sync';
 const ALARM_MYRED = 'myred-sync';
 const ALARM_NVOLVEU = 'nvolveu-sync';
 const ALARM_GRADES = 'grades-sync';
+const ALARM_LOCATION = 'location-sync';
 
 // ---------------------------------------------------------------------------
 // Lifecycle — Install & Alarm Setup
@@ -59,6 +61,7 @@ function setupAlarms() {
   chrome.alarms.create(ALARM_MYRED, { delayInMinutes: 5, periodInMinutes: 60 });
   chrome.alarms.create(ALARM_NVOLVEU, { delayInMinutes: 2, periodInMinutes: 120 });
   chrome.alarms.create(ALARM_GRADES, { delayInMinutes: 10, periodInMinutes: 360 });
+  chrome.alarms.create(ALARM_LOCATION, { delayInMinutes: 0.5, periodInMinutes: 5 });
 }
 
 // ---------------------------------------------------------------------------
@@ -87,6 +90,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       break;
     case ALARM_NVOLVEU:
       await runNvolveUSync();
+      break;
+    case ALARM_LOCATION:
+      await runLocationSync();
       break;
   }
 });
@@ -158,6 +164,8 @@ async function handleMessage(message, sender) {
         building: e.location || e.building || '',
         orgName: e.org_name || e.orgName || '',
         eventUrl: e.event_url || e.eventUrl || '',
+        hasFreeFood: e.has_free_food || e.hasFreeFood || false,
+        foodDetails: e.food_details || e.foodDetails || null,
       }));
       const evtResult = await syncNvolveUEvents(normalizedEvents);
       return { success: evtResult.ok, status: evtResult.status };
@@ -264,7 +272,7 @@ async function scrapeCanvasCourses() {
   console.log('[Kampus] Scraping Canvas courses...');
 
   const rawCourses = await canvasFetchAll(
-    '/courses?enrollment_state=active&per_page=50&include[]=term&include[]=total_scores'
+    '/courses?per_page=50&include[]=term&include[]=total_scores'
   );
 
   const courses = rawCourses
@@ -322,6 +330,8 @@ async function scrapeCanvasAssignments(courses) {
             submissionTypes: p.submission_types,
             hasSubmitted: p.has_submitted,
             htmlUrl: p.html_url,
+            submittedAt: p.submitted_at,
+            score: a.submission ? a.submission.score : null,
           };
         });
 
@@ -430,6 +440,8 @@ async function scrapeNvolveUEvents() {
         building: p.location || '',
         orgName: p.org_name,
         eventUrl: p.event_url,
+        hasFreeFood: p.has_free_food || false,
+        foodDetails: p.food_details || null,
       };
     });
     console.log(`[Kampus] Found ${events.length} NvolveU events.`);
@@ -498,6 +510,40 @@ async function runNvolveUSync() {
   }
 }
 
+async function runLocationSync() {
+  console.log('[Kampus] Running live location sync...');
+  try {
+    // 1. Create the offscreen document if it doesn't already exist
+    const creating = await chrome.offscreen.createDocument({
+      url: 'offscreen.html',
+      reasons: ['GEOLOCATION'],
+      justification: 'Kampus syncs user live location to the dashboard',
+    }).catch(err => {
+      // Ignore if document already exists error
+      if (!err.message.includes('Only a single offscreen')) throw err;
+    });
+
+    // 2. Message the offscreen document to fetch coordinates
+    const locationObj = await chrome.runtime.sendMessage({ type: 'GET_GEOLOCATION' });
+    if (locationObj && !locationObj.error) {
+      await syncLocation({
+        latitude: locationObj.latitude,
+        longitude: locationObj.longitude,
+        timestamp: locationObj.timestamp,
+        source: 'kampus-chrome-extension'
+      });
+      console.log(`[Kampus] Synced live location: ${locationObj.latitude}, ${locationObj.longitude}`);
+    } else {
+      console.warn('[Kampus] Location sync failed:', locationObj?.error);
+    }
+
+    // 3. Clean up the offscreen document to save memory
+    await chrome.offscreen.closeDocument();
+  } catch (err) {
+    console.error('[Kampus] Failed to process location sync:', err);
+  }
+}
+
 async function runFullSync() {
   console.log('[Kampus] Running full manual sync...');
   updateBadge('syncing');
@@ -548,10 +594,39 @@ async function openBackgroundScraper(url, timeoutMs = 60000) {
   try {
     const tab = await chrome.tabs.create({ url, active: false, pinned: true });
 
+    // Monitor for login redirects (TrueYou or Canvas SSO)
+    const urlListener = (tabId, changeInfo) => {
+      if (tabId === tab.id && changeInfo.url) {
+        const urlLower = changeInfo.url.toLowerCase();
+        if (urlLower.includes('trueyou.nebraska.edu') || urlLower.includes('login.unl.edu') || urlLower.includes('/login/')) {
+          chrome.notifications.create('kampus-auth-' + tab.id, {
+            type: 'basic',
+            iconUrl: 'icons/icon128.png',
+            title: 'Kampus Sync Paused',
+            message: 'Your university session expired! Background sync is stuck on the login screen. Please log into MyRed or Canvas manually to resume.',
+            priority: 2,
+            requireInteraction: true
+          });
+
+          // Make the stuck background tab active so they can actually log in securely!
+          chrome.notifications.onClicked.addListener(function authClick(notifId) {
+            if (notifId === 'kampus-auth-' + tab.id) {
+              chrome.tabs.update(tab.id, { active: true });
+              chrome.notifications.onClicked.removeListener(authClick);
+            }
+          });
+
+          chrome.tabs.onUpdated.removeListener(urlListener);
+        }
+      }
+    };
+    chrome.tabs.onUpdated.addListener(urlListener);
+
     // Safety timeout: close the tab after 60s if the content script failed/hung
     setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(urlListener);
       chrome.tabs.get(tab.id, (t) => {
-        if (!chrome.runtime.lastError && t) {
+        if (!chrome.runtime.lastError && t && !t.active) { // Don't close if they clicked it to log in
           console.log(`[Kampus] Scraper timeout: closing background tab ${tab.id}`);
           chrome.tabs.remove(tab.id).catch(() => { });
         }
@@ -566,7 +641,7 @@ async function openBackgroundScraper(url, timeoutMs = 60000) {
 
 async function runMyRedScraper() {
   console.log('[Kampus] Launching autonomous MyRed scraper...');
-  const scheduleUrl = 'https://myred.nebraska.edu/psp/myred/NBL/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_SCHD_W.GBL?Page=SSR_SS_WEEK';
+  const scheduleUrl = 'https://myred.nebraska.edu/psp/myred/NBL/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_LIST.GBL?Page=SSR_SSENRL_LIST';
   await openBackgroundScraper(scheduleUrl, 60000); // 60s timeout
 }
 

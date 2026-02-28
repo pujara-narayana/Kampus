@@ -157,6 +157,17 @@ async function syncNvolveUEvents(events) {
   });
 }
 
+/**
+ * Syncs the user's live background location trace to the backend.
+ * @param {object} location
+ */
+async function syncLocation(location) {
+  return apiRequest('/api/sync/location', {
+    method: 'POST',
+    body: location,
+  });
+}
+
 // Exported for use by background.js and other extension scripts via importScripts
 // In Manifest V3 service workers, these are available globally when imported as a module.
 export {
@@ -166,6 +177,7 @@ export {
   clearToken,
   setApiBase,
   apiRequest,
+  syncLocation,
   syncAssignments,
   syncCourses,
   syncSchedule,

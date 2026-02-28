@@ -28,6 +28,7 @@
       'student.main',         // The user's new link
       'cref=nbl_nvc',         // The user's new link
       'page=ssr_ss_week',     // The background scraper link
+      'page=ssr_ssenrl_list', // The new list-view background scraperlink
     ];
 
     if (schedulePatterns.some(p => url.includes(p))) {
