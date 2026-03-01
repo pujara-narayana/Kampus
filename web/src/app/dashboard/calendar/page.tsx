@@ -66,6 +66,7 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [googleConnected, setGoogleConnected] = useState(false);
   const [gcalConnecting, setGcalConnecting] = useState(false);
+  const [gcalDisconnecting, setGcalDisconnecting] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
 
   const year = currentDate.getFullYear();
@@ -102,17 +103,8 @@ export default function CalendarPage() {
           }
         }
 
-        // Map events
-        const events = (res as any).events || [];
-        for (const e of events) {
-          mapped.push({
-            id: `evt-${e.id}`,
-            title: e.title,
-            start: e.startTime,
-            end: e.endTime || undefined,
-            type: e.hasFreeFood ? "free_food" : "event",
-          });
-        }
+        // Campus events are not shown on the calendar (only user's classes,
+        // assignments, study sessions, and Google Calendar).
 
         // Map study sessions
         const studySessions = (res as any).studySessions || [];
@@ -126,15 +118,16 @@ export default function CalendarPage() {
           });
         }
 
-        // Map Google Calendar events
+        // Map Google Calendar events (campus-added ones use "event" color)
         const googleEvents = (res as any).googleEvents || [];
+        const campusAddedIds = new Set((res as any).campusAddedGoogleEventIds || []);
         for (const g of googleEvents) {
           mapped.push({
             id: `gcal-${g.id}`,
             title: g.title,
             start: g.start,
             end: g.end,
-            type: "google",
+            type: campusAddedIds.has(g.id) ? "event" : "google",
           });
         }
 
@@ -159,10 +152,29 @@ export default function CalendarPage() {
     }
   };
 
+  const handleDisconnectGoogleCalendar = async () => {
+    setGcalDisconnecting(true);
+    try {
+      await api.disconnectGcal();
+      setGoogleConnected(false);
+      setItems((prev) => prev.filter((item) => item.type !== "google"));
+    } catch {
+      // keep connected on error
+    } finally {
+      setGcalDisconnecting(false);
+    }
+  };
+
   const getItemsForDate = (dateStr: string) => {
     return items.filter((item) => {
-      const d = new Date(item.start);
-      const itemDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const start = item.start;
+      const itemDate =
+        start.length === 10 && !start.includes("T")
+          ? start
+          : (() => {
+              const d = new Date(start);
+              return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+            })();
       return itemDate === dateStr;
     });
   };
@@ -196,9 +208,20 @@ export default function CalendarPage() {
             {gcalConnecting ? "Redirecting…" : "Connect Google Calendar"}
           </Button>
         ) : (
-          <Badge variant="secondary" className="text-xs">
-            Google Calendar connected
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-xs">
+              Google Calendar connected
+            </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDisconnectGoogleCalendar}
+              disabled={gcalDisconnecting}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              {gcalDisconnecting ? "Disconnecting…" : "Disconnect"}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -341,10 +364,12 @@ export default function CalendarPage() {
                           {style.label}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(item.start).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {item.start.length === 10 && !item.start.includes("T")
+                            ? "All day"
+                            : new Date(item.start).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
                         </span>
                       </div>
                       <p className={`font-medium text-sm ${style.text}`}>

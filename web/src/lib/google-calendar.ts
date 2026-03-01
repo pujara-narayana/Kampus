@@ -9,8 +9,8 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
 const SCOPES = [
-  "https://www.googleapis.com/auth/calendar.events.readonly", // Pull events into Kampus
-  "https://www.googleapis.com/auth/calendar.readonly",        // List calendars / primary
+  "https://www.googleapis.com/auth/calendar.events", // Read + create/update/delete events
+  "https://www.googleapis.com/auth/calendar.readonly", // List calendars / primary
 ];
 
 export interface GoogleTokens {
@@ -70,6 +70,26 @@ export async function getTokensFromCode(
   };
 }
 
+/** Refresh access token if expired (or within 5 min). Returns tokens to persist. */
+export async function refreshGoogleTokensIfNeeded(
+  storedTokens: GoogleTokens
+): Promise<GoogleTokens> {
+  const oauth2 = getOAuth2Client();
+  oauth2.setCredentials({
+    access_token: storedTokens.access_token,
+    refresh_token: storedTokens.refresh_token,
+    expiry_date: storedTokens.expiry_date,
+  });
+  await oauth2.getAccessToken();
+  const c = oauth2.credentials;
+  return {
+    access_token: c.access_token ?? storedTokens.access_token,
+    refresh_token: c.refresh_token ?? storedTokens.refresh_token,
+    expiry_date: c.expiry_date ?? storedTokens.expiry_date,
+    scope: c.scope ?? storedTokens.scope,
+  };
+}
+
 /**
  * Fetch events from the user's primary Google Calendar for the given time range.
  * Uses stored tokens (with refresh if needed).
@@ -113,6 +133,54 @@ export async function fetchGoogleCalendarEvents(
   }
 
   return out;
+}
+
+export interface CreateGoogleCalendarEventInput {
+  title: string;
+  start: Date | string;
+  end?: Date | string;
+  description?: string;
+  location?: string;
+}
+
+/**
+ * Create an event on the user's primary Google Calendar.
+ * Used when creating a study session so it appears in their Google Calendar.
+ */
+export async function createGoogleCalendarEvent(
+  storedTokens: GoogleTokens,
+  input: CreateGoogleCalendarEventInput
+): Promise<{ id: string; htmlLink?: string } | null> {
+  const oauth2 = getOAuth2Client();
+  oauth2.setCredentials({
+    access_token: storedTokens.access_token,
+    refresh_token: storedTokens.refresh_token,
+    expiry_date: storedTokens.expiry_date,
+  });
+
+  const start = typeof input.start === "string" ? new Date(input.start) : input.start;
+  const end =
+    input.end !== undefined
+      ? typeof input.end === "string"
+        ? new Date(input.end)
+        : input.end
+      : new Date(start.getTime() + 60 * 60 * 1000); // default 1 hour
+
+  const calendar = google.calendar({ version: "v3", auth: oauth2 });
+  const res = await calendar.events.insert({
+    calendarId: "primary",
+    requestBody: {
+      summary: input.title,
+      description: input.description ?? undefined,
+      location: input.location ?? undefined,
+      start: { dateTime: start.toISOString() },
+      end: { dateTime: end.toISOString() },
+    },
+  });
+
+  const id = res.data.id ?? null;
+  const htmlLink = res.data.htmlLink ?? undefined;
+  return id ? { id, htmlLink } : null;
 }
 
 export function isGoogleCalendarConfigured(): boolean {

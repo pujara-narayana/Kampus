@@ -5,7 +5,6 @@ import {
   fetchGoogleCalendarEvents,
   type GoogleTokens,
 } from "@/lib/google-calendar";
-import { getEventsFromData } from "@/lib/events-data";
 
 function defaultCalendarRange(): { timeMin: Date; timeMax: Date } {
   const now = new Date();
@@ -45,9 +44,16 @@ export async function GET(req: NextRequest) {
     const hasDateFilter = from || to;
 
     const timeMin = from ? new Date(from) : defaultCalendarRange().timeMin;
-    const timeMax = to
-      ? new Date(to)
-      : defaultCalendarRange().timeMax;
+    // Use end of last day so Google returns events for the full requested range
+    let timeMax: Date;
+    if (to) {
+      const endOfDay = new Date(to);
+      endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
+      endOfDay.setUTCHours(0, 0, 0, 0);
+      timeMax = endOfDay;
+    } else {
+      timeMax = defaultCalendarRange().timeMax;
+    }
 
     const [classes, assignments, studySessions] = await Promise.all([
       prisma.classSchedule.findMany({
@@ -80,11 +86,9 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    const events = getEventsFromData({
-      from: timeMin,
-      to: timeMax,
-      limit: 200,
-    });
+    // Campus events are not shown on the calendar — only items the user is
+    // connected to (classes, assignments, study sessions, Google Calendar).
+    const events: never[] = [];
 
     let googleEvents: Awaited<ReturnType<typeof fetchGoogleCalendarEvents>> = [];
     const tokens = user.googleToken as GoogleTokens | null;
@@ -101,6 +105,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const settings = (user.settings as { addedToGoogleEventIds?: string[] }) ?? {};
+    const campusAddedGoogleEventIds = settings.addedToGoogleEventIds ?? [];
+
     const payload = {
       classes,
       assignments,
@@ -108,6 +115,7 @@ export async function GET(req: NextRequest) {
       studySessions,
       googleEvents,
       googleConnected: Boolean(tokens?.access_token),
+      campusAddedGoogleEventIds,
     };
     return NextResponse.json(serializeBigInt(payload));
   } catch (error) {

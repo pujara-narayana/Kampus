@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api-client";
+import { toast } from "sonner";
 
 interface EventItem {
   id: string;
@@ -27,6 +28,7 @@ export default function EventsPage() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [addingToCalendarId, setAddingToCalendarId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -50,6 +52,31 @@ export default function EventsPage() {
         : filter === "social"
           ? events.filter((e) => e.eventType === "social")
           : events;
+
+  async function handleAddToCalendar(event: EventItem) {
+    setAddingToCalendarId(event.id);
+    try {
+      const res = await api.addEventToGoogleCalendar({
+        title: event.title,
+        startTime: event.startTime,
+        endTime: event.endTime ?? undefined,
+        description: event.description ?? undefined,
+        location: [event.building, event.room].filter(Boolean).join(", ") || undefined,
+      });
+      if (res?.googleCalendarAdded) {
+        toast.success("Added to Google Calendar!");
+      }
+    } catch (err: unknown) {
+      const code = err && typeof err === "object" && "code" in err ? (err as { code?: string }).code : undefined;
+      if (code === "NOT_CONNECTED" || (err as { message?: string })?.message?.includes("not connected")) {
+        toast.error("Connect Google Calendar on the Calendar page first.");
+      } else {
+        toast.error("Could not add to Google Calendar.");
+      }
+    } finally {
+      setAddingToCalendarId(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -113,14 +140,14 @@ export default function EventsPage() {
               {filteredEvents.map((event) => (
                 <Card
                   key={event.id}
-                  className={
+                  className={`flex h-full flex-col ${
                     event.hasFreeFood
                       ? "border-orange-400 dark:border-orange-600"
                       : ""
-                  }
+                  }`}
                 >
                   {event.imageUrl && (
-                    <div className="relative aspect-video w-full overflow-hidden rounded-t-lg bg-muted">
+                    <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-t-lg bg-muted">
                       <img
                         src={event.imageUrl}
                         alt=""
@@ -128,7 +155,7 @@ export default function EventsPage() {
                       />
                     </div>
                   )}
-                  <CardHeader className="pb-2">
+                  <CardHeader className="shrink-0 pb-2">
                     <div className="flex items-start justify-between">
                       <CardTitle className="text-base leading-tight">
                         {event.hasFreeFood && (
@@ -143,7 +170,7 @@ export default function EventsPage() {
                       </p>
                     )}
                   </CardHeader>
-                  <CardContent className="space-y-2">
+                  <CardContent className="flex min-h-0 flex-1 flex-col space-y-2">
                     <div className="flex items-center gap-2 text-sm">
                       <span>📍</span>
                       <span>
@@ -184,6 +211,17 @@ export default function EventsPage() {
                         View Details →
                       </a>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-auto w-full shrink-0"
+                      onClick={() => handleAddToCalendar(event)}
+                      disabled={addingToCalendarId !== null}
+                    >
+                      {addingToCalendarId === event.id
+                        ? "Adding…"
+                        : "Add to Google Calendar"}
+                    </Button>
                   </CardContent>
                 </Card>
               ))}

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
+import {
+  createGoogleCalendarEvent,
+  refreshGoogleTokensIfNeeded,
+  type GoogleTokens,
+} from "@/lib/google-calendar";
 
 export async function GET(req: NextRequest) {
   try {
@@ -143,7 +148,32 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ session }, { status: 201 });
+    let googleCalendarAdded = false;
+    const tokens = user.googleToken as GoogleTokens | null;
+    if (tokens?.access_token && session.startTime) {
+      try {
+        const freshTokens = await refreshGoogleTokensIfNeeded(tokens);
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { googleToken: freshTokens as object },
+        });
+        await createGoogleCalendarEvent(freshTokens, {
+          title: session.title || "Study Session",
+          start: session.startTime,
+          end: session.endTime ?? undefined,
+          description: session.description ?? undefined,
+          location: [session.building, session.room].filter(Boolean).join(", ") || undefined,
+        });
+        googleCalendarAdded = true;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const code = err && typeof err === "object" && "code" in err ? (err as { code?: number }).code : undefined;
+        console.error("Failed to add study session to Google Calendar:", message, code ?? "");
+        // 403 = need to reconnect to grant calendar write permission
+      }
+    }
+
+    return NextResponse.json({ session, googleCalendarAdded }, { status: 201 });
   } catch (error) {
     console.error("Create session error:", error);
     return NextResponse.json(

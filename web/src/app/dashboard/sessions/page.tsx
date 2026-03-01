@@ -91,7 +91,7 @@ export default function SessionsPage() {
     setCreating(true);
     const form = new FormData(e.currentTarget);
     try {
-      await api.createSession({
+      const res = await api.createSession({
         title: form.get("title"),
         description: form.get("description"),
         building: form.get("building"),
@@ -100,7 +100,11 @@ export default function SessionsPage() {
         endTime: form.get("endTime"),
         maxParticipants: parseInt(form.get("maxParticipants") as string) || 10,
       });
-      toast.success("Study session created!");
+      toast.success(
+        res?.googleCalendarAdded
+          ? "Study session created and added to Google Calendar!"
+          : "Study session created!"
+      );
       setDialogOpen(false);
       loadSessions();
     } catch {
@@ -112,8 +116,12 @@ export default function SessionsPage() {
 
   async function handleJoin(sessionId: string) {
     try {
-      await api.joinSession(sessionId);
-      toast.success("Joined session!");
+      const res = await api.joinSession(sessionId);
+      toast.success(
+        res?.googleCalendarAdded
+          ? "Joined! Added to Google Calendar."
+          : "Joined session!"
+      );
       loadSessions();
     } catch {
       toast.error("Failed to join session");
