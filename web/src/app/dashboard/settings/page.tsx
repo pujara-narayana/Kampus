@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api-client";
 import { toast } from "sonner";
+import { Key, RefreshCw, PartyPopper, Calendar } from "lucide-react";
 
 type ThemeValue = "light" | "dark" | "system";
 type SessionVisibility = "all" | "friends";
@@ -272,10 +273,10 @@ export default function SettingsPage() {
             <Button
               variant="outline"
               size="sm"
-              className="w-full"
+              className="w-full flex items-center justify-center gap-2"
               onClick={() => window.open("https://canvas.unl.edu/profile/settings#access_tokens_holder", "_blank")}
             >
-              🔑 Open Canvas Settings → Generate Token
+              <Key className="w-4 h-4" /> Open Canvas Settings → Generate Token
             </Button>
             <p className="text-xs text-muted-foreground">
               Click &quot;+ New Access Token&quot;, give it any name (e.g. &quot;Kampus&quot;), then copy the token shown.
@@ -308,24 +309,27 @@ export default function SettingsPage() {
               disabled={syncingCanvas}
               variant="outline"
               size="sm"
+              className="flex flex-1 items-center justify-center gap-2"
             >
-              {syncingCanvas ? "Syncing Canvas..." : "🔄 Sync Canvas Now"}
+              <RefreshCw className={`w-4 h-4 ${syncingCanvas ? "animate-spin" : ""}`} /> {syncingCanvas ? "Syncing Canvas..." : "Sync Canvas Now"}
             </Button>
             <Button
               onClick={handleNvolveuSync}
               disabled={syncingNvolveu}
               variant="outline"
               size="sm"
+              className="flex flex-1 items-center justify-center gap-2"
             >
-              {syncingNvolveu ? "Syncing Events..." : "🎉 Sync Campus Events"}
+              <PartyPopper className="w-4 h-4" /> {syncingNvolveu ? "Syncing Events..." : "Sync Campus Events"}
             </Button>
             <Button
               onClick={handleMyredSync}
               disabled={syncingMyred}
               variant="outline"
               size="sm"
+              className="flex flex-1 items-center justify-center gap-2"
             >
-              {syncingMyred ? "Opening MyRed..." : "📅 Sync MyRed Schedule"}
+              <Calendar className="w-4 h-4" /> {syncingMyred ? "Opening MyRed..." : "Sync MyRed Schedule"}
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">

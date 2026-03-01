@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api-client";
+import { Pizza } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -380,7 +381,10 @@ export default function CalendarPage() {
                         {item.title}
                       </p>
                       {item.type === "free_food" && (
-                        <p className="text-xs mt-1">🍕 Free food available!</p>
+                        <p className="text-xs mt-1 flex items-center gap-1">
+                          <Pizza className="w-3 h-3 text-[#D00000]" />
+                          Free food available!
+                        </p>
                       )}
                     </div>
                   );

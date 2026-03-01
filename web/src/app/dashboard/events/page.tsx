@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api-client";
+import { Pizza, MapPin, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 interface EventItem {
@@ -110,7 +111,7 @@ export default function EventsPage() {
       {events.some((e) => e.hasFreeFood) && !hideFreeFoodAlerts && (
         <Card className="border-orange-400 bg-orange-50 dark:bg-orange-950/20">
           <CardContent className="flex items-center gap-4 py-4">
-            <span className="text-4xl">🍕</span>
+            <Pizza className="w-8 h-8 text-[#D00000]" />
             <div className="flex-1">
               <h3 className="font-semibold text-orange-700 dark:text-orange-300">
                 FREE FOOD SPOTTED!
@@ -180,11 +181,10 @@ export default function EventsPage() {
                 {filteredEvents.map((event) => (
                 <Card
                   key={event.id}
-                  className={`flex h-full flex-col ${
-                    event.hasFreeFood
+                  className={`flex h-full flex-col ${event.hasFreeFood
                       ? "border-orange-400 dark:border-orange-600"
                       : ""
-                  }`}
+                    }`}
                 >
                   {event.imageUrl && (
                     <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-t-lg bg-muted">
@@ -197,9 +197,9 @@ export default function EventsPage() {
                   )}
                   <CardHeader className="shrink-0 pb-2">
                     <div className="flex items-start justify-between">
-                      <CardTitle className="text-base leading-tight">
+                      <CardTitle className="text-base leading-tight flex items-center">
                         {event.hasFreeFood && (
-                          <span className="mr-1">🍕</span>
+                          <Pizza className="w-4 h-4 mr-2 text-[#D00000]" />
                         )}
                         {event.title}
                       </CardTitle>
@@ -212,14 +212,14 @@ export default function EventsPage() {
                   </CardHeader>
                   <CardContent className="flex min-h-0 flex-1 flex-col space-y-2">
                     <div className="flex items-center gap-2 text-sm">
-                      <span>📍</span>
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
                       <span>
                         {event.building || "TBD"}
                         {event.room ? ` ${event.room}` : ""}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
-                      <span>🕐</span>
+                      <Clock className="w-4 h-4 text-muted-foreground" />
                       <span>
                         {new Date(event.startTime).toLocaleDateString()} at{" "}
                         {new Date(event.startTime).toLocaleTimeString([], {

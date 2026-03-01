@@ -46,7 +46,7 @@ export default function RegisterPage() {
                 <CardTitle className="text-2xl font-bold text-white">
                     Create your account
                 </CardTitle>
-                <CardDescription className="text-blue-200/60">
+                <CardDescription className="text-slate-400">
                     Join Kampus and unify your campus life
                 </CardDescription>
             </CardHeader>
@@ -58,7 +58,7 @@ export default function RegisterPage() {
                         </div>
                     )}
                     <div className="space-y-2">
-                        <Label htmlFor="displayName" className="text-blue-100/80">
+                        <Label htmlFor="displayName" className="text-slate-200">
                             Display Name
                         </Label>
                         <Input
@@ -67,11 +67,11 @@ export default function RegisterPage() {
                             value={displayName}
                             onChange={(e) => setDisplayName(e.target.value)}
                             required
-                            className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-blue-400/50 focus:ring-blue-400/20"
+                            className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-[#D00000]/50 focus:ring-[#D00000]/20"
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="email" className="text-blue-100/80">
+                        <Label htmlFor="email" className="text-slate-200">
                             Email
                         </Label>
                         <Input
@@ -81,11 +81,11 @@ export default function RegisterPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
-                            className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-blue-400/50 focus:ring-blue-400/20"
+                            className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-[#D00000]/50 focus:ring-[#D00000]/20"
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="password" className="text-blue-100/80">
+                        <Label htmlFor="password" className="text-slate-200">
                             Password
                         </Label>
                         <Input
@@ -96,23 +96,23 @@ export default function RegisterPage() {
                             onChange={(e) => setPassword(e.target.value)}
                             required
                             minLength={6}
-                            className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-blue-400/50 focus:ring-blue-400/20"
+                            className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-[#D00000]/50 focus:ring-[#D00000]/20"
                         />
                     </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button
                         type="submit"
-                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium"
+                        className="w-full bg-[#D00000] hover:bg-[#a00000] text-white font-medium"
                         disabled={loading}
                     >
                         {loading ? "Creating account..." : "Create Account"}
                     </Button>
-                    <p className="text-sm text-blue-200/50">
+                    <p className="text-sm text-slate-400">
                         Already have an account?{" "}
                         <Link
                             href="/login"
-                            className="text-blue-400 hover:text-blue-300 font-medium underline underline-offset-4"
+                            className="text-red-400 hover:text-red-300 font-medium underline underline-offset-4"
                         >
                             Sign in
                         </Link>

@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { api } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
+import { Library, MapPin, Clock, Users } from "lucide-react";
 
 interface Session {
   id: string;
@@ -156,8 +157,8 @@ export default function SessionsPage() {
         const participants: string[] =
           sessionRes.status === "fulfilled" && sessionRes.value?.session
             ? (Array.isArray((sessionRes.value.session as any).participants)
-                ? (sessionRes.value.session as any).participants.map((p: { userId: string }) => p.userId)
-                : [])
+              ? (sessionRes.value.session as any).participants.map((p: { userId: string }) => p.userId)
+              : [])
             : [];
         const alreadyInSession = new Set(participants);
         const people: InviteUser[] =
@@ -401,8 +402,8 @@ export default function SessionsPage() {
         </p>
       ) : sessions.filter(s => !showJoinedOnly || s.hasJoined || s.isCreator).length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center">
-            <span className="text-4xl">📚</span>
+          <CardContent className="py-12 text-center flex flex-col items-center">
+            <Library className="w-12 h-12 text-[#D00000]" />
             <h3 className="mt-4 font-semibold">No Sessions Found</h3>
             <p className="text-muted-foreground mt-2">
               {showJoinedOnly ? "You haven't joined any sessions yet." : "Be the first to create a study session for your courses!"}
@@ -441,14 +442,14 @@ export default function SessionsPage() {
               <CardContent className="space-y-2 flex-grow flex flex-col justify-between">
                 <div>
                   <div className="flex items-center gap-2 text-sm mt-2">
-                    <span>📍</span>
+                    <MapPin className="w-4 h-4 text-muted-foreground" />
                     <span>
                       {session.building || "TBD"}
                       {session.room ? ` ${session.room}` : ""}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm mt-2">
-                    <span>🕐</span>
+                    <Clock className="w-4 h-4 text-muted-foreground" />
                     <span>
                       {new Date(session.startTime).toLocaleDateString()} at{" "}
                       {new Date(session.startTime).toLocaleTimeString([], {
@@ -458,7 +459,7 @@ export default function SessionsPage() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm mt-2">
-                    <span>👥</span>
+                    <Users className="w-4 h-4 text-muted-foreground" />
                     <span>
                       {(session as any)._count?.participants ?? session.participantCount ?? 0}/{session.maxParticipants} joined
                     </span>
@@ -541,11 +542,11 @@ export default function SessionsPage() {
               <Separator />
               <div className="grid gap-2 text-sm">
                 <div className="flex items-center gap-2">
-                  <span>📍</span>
+                  <MapPin className="w-4 h-4 text-muted-foreground" />
                   <span>{detailSession.building ? String(detailSession.building) : "TBD"}{detailSession.room ? ` ${String(detailSession.room)}` : ""}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span>🕐</span>
+                  <Clock className="w-4 h-4 text-muted-foreground" />
                   <span>
                     {detailSession.startTime
                       ? new Date(detailSession.startTime as string).toLocaleString(undefined, {
@@ -559,7 +560,7 @@ export default function SessionsPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span>👥</span>
+                  <Users className="w-4 h-4 text-muted-foreground" />
                   <span>
                     {Array.isArray(detailSession.participants) ? detailSession.participants.length : 0} / {Number(detailSession.maxParticipants) || 10} participants
                   </span>
@@ -620,29 +621,29 @@ export default function SessionsPage() {
                 {(detailSession.creatorId === user?.id ||
                   (Array.isArray(detailSession.participants) && detailSession.participants.some((p: any) => p.userId === user?.id && p.status === "accepted"))) &&
                   !(detailSession as any).groupChat?.id && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleCreateGroupChat(detailSessionId!)}
-                  >
-                    Create group chat
-                  </Button>
-                )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleCreateGroupChat(detailSessionId!)}
+                    >
+                      Create group chat
+                    </Button>
+                  )}
                 {/* Group Chat button - when group chat exists, for creator and accepted participants */}
                 {((detailSession as any).groupChat?.id) &&
                   (detailSession.creatorId === user?.id ||
                     (Array.isArray(detailSession.participants) && detailSession.participants.some((p: any) => p.userId === user?.id && p.status === "accepted"))) && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      closeSessionDetail();
-                      router.push(`/dashboard/chat?session=${detailSessionId}`);
-                    }}
-                  >
-                    Group Chat
-                  </Button>
-                )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        closeSessionDetail();
+                        router.push(`/dashboard/chat?session=${detailSessionId}`);
+                      }}
+                    >
+                      Group Chat
+                    </Button>
+                  )}
                 {detailSession.creatorId === user?.id && (
                   <Button
                     size="sm"

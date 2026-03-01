@@ -6,21 +6,31 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: "🏠" },
-  { href: "/dashboard/calendar", label: "Calendar", icon: "📅" },
-  { href: "/dashboard/events", label: "Events", icon: "🎉" },
-  { href: "/dashboard/sessions", label: "Study Sessions", icon: "📚" },
-  { href: "/dashboard/insights", label: "Insights", icon: "📊" },
-  { href: "/dashboard/social", label: "Social", icon: "👥" },
-  { href: "/dashboard/chat", label: "Chat", icon: "💬" },
-  { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
-];
+import {
+  Home,
+  Calendar,
+  PartyPopper,
+  Library,
+  BarChart,
+  Users,
+  MessageSquare,
+  Settings,
+} from "lucide-react";
 
 export function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+
+  const navItems = [
+    { href: "/dashboard", label: "Dashboard", Icon: Home },
+    { href: "/dashboard/calendar", label: "Calendar", Icon: Calendar },
+    { href: "/dashboard/events", label: "Events", Icon: PartyPopper },
+    { href: "/dashboard/sessions", label: "Study Sessions", Icon: Library },
+    { href: "/dashboard/insights", label: "Insights", Icon: BarChart },
+    { href: "/dashboard/social", label: "Social", Icon: Users },
+    { href: "/dashboard/chat", label: "Chat", Icon: MessageSquare },
+    { href: "/dashboard/settings", label: "Settings", Icon: Settings },
+  ];
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r bg-card">
@@ -45,7 +55,7 @@ export function Sidebar() {
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 }`}
             >
-              <span>{item.icon}</span>
+              <item.Icon className="h-5 w-5" />
               {item.label}
             </Link>
           );
