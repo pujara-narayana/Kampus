@@ -8,7 +8,7 @@ import {
 } from "@/lib/google-calendar";
 
 async function addSessionToGoogleCalendar(
-  user: { id: string; googleToken: unknown },
+  user: { id: string; googleToken: unknown; settings?: unknown },
   session: {
     title: string | null;
     startTime: Date | null;
@@ -26,13 +26,21 @@ async function addSessionToGoogleCalendar(
       where: { id: user.id },
       data: { googleToken: freshTokens as object },
     });
-    await createGoogleCalendarEvent(freshTokens, {
+    const created = await createGoogleCalendarEvent(freshTokens, {
       title: session.title || "Study Session",
       start: session.startTime,
       end: session.endTime ?? undefined,
       description: session.description ?? undefined,
       location: [session.building, session.room].filter(Boolean).join(", ") || undefined,
     });
+    if (created?.id) {
+      const settings = (user.settings as { studySessionGoogleEventIds?: string[] }) ?? {};
+      const ids = [...(settings.studySessionGoogleEventIds ?? []), created.id];
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { settings: { ...settings, studySessionGoogleEventIds: ids } as object },
+      });
+    }
     return true;
   } catch (err) {
     console.error("Failed to add joined session to Google Calendar:", err);

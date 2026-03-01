@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api, type BehaviorProfileResponse } from "@/lib/api-client";
+import { Pizza, Flame } from "lucide-react";
 
 interface PatternData {
   procrastinationIndex: number;
@@ -294,8 +295,8 @@ export default function InsightsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              🍕 {patterns?.freeFoodEvents ?? 0}
+            <div className="text-2xl font-bold flex items-center gap-2">
+              <Pizza className="w-6 h-6 text-[#D00000]" /> {patterns?.freeFoodEvents ?? 0}
             </div>
             <p className="text-xs text-muted-foreground">
               events attended this semester
@@ -339,7 +340,7 @@ export default function InsightsPage() {
                         days
                       </span>
                       {streak.currentCount >= 3 && (
-                        <span className="ml-1">🔥</span>
+                        <Flame className="w-4 h-4 inline-block ml-1 text-orange-500" />
                       )}
                     </div>
                   </div>
@@ -434,8 +435,8 @@ export default function InsightsPage() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Free Food Events</span>
-                <span className="font-medium">
-                  🍕 {patterns?.freeFoodEvents ?? 0}
+                <span className="font-medium flex items-center gap-2">
+                  <Pizza className="w-4 h-4 text-[#D00000]" /> {patterns?.freeFoodEvents ?? 0}
                 </span>
               </div>
             </div>

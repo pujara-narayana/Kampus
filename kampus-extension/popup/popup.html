@@ -20,7 +20,7 @@
     }
 
     .header {
-      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+      background: linear-gradient(135deg, #a00000 0%, #D00000 100%);
       padding: 16px 20px;
       display: flex;
       align-items: center;
@@ -36,7 +36,7 @@
 
     .header .badge {
       font-size: 10px;
-      background: #3b82f6;
+      background: rgba(255, 255, 255, 0.2);
       color: #fff;
       padding: 2px 8px;
       border-radius: 10px;
@@ -160,16 +160,16 @@
     }
 
     .btn-primary {
-      background: #3b82f6;
+      background: #D00000;
       color: #fff;
     }
 
     .btn-primary:hover {
-      background: #2563eb;
+      background: #a00000;
     }
 
     .btn-primary:disabled {
-      background: #1e40af;
+      background: #7a0000;
       opacity: 0.6;
       cursor: not-allowed;
     }
@@ -213,7 +213,7 @@
     }
 
     .login-form input:focus {
-      border-color: #3b82f6;
+      border-color: #D00000;
     }
 
     .login-form input::placeholder {
@@ -283,7 +283,7 @@
     <div class="section-title">Connect Account</div>
     <p style="font-size:12px;color:#94a3b8;margin-bottom:10px;">Log in on the Kampus website to connect your extension.
     </p>
-    <button class="btn btn-primary" id="connectViaWebBtn" style="width:100%;">🏛️ Connect via Website</button>
+    <button class="btn btn-primary" id="connectViaWebBtn" style="width:100%;">Connect via Website</button>
   </div>
 
   <div id="accountSection" class="login-section hidden">
@@ -298,19 +298,19 @@
     <div class="section-title">Last Synced</div>
     <div id="syncTimes">
       <div class="sync-row">
-        <span class="source">📝 Canvas</span>
+        <span class="source">Canvas</span>
         <span class="time" id="canvasTime">—</span>
       </div>
       <div class="sync-row">
-        <span class="source">📅 MyRed</span>
+        <span class="source">MyRed</span>
         <span class="time" id="myredTime">—</span>
       </div>
       <div class="sync-row">
-        <span class="source">🎉 NvolveU</span>
+        <span class="source">NvolveU</span>
         <span class="time" id="nvolveuTime">—</span>
       </div>
       <div class="sync-row">
-        <span class="source">📊 Grades</span>
+        <span class="source">Grades</span>
         <span class="time" id="gradesTime">—</span>
       </div>
     </div>
@@ -318,15 +318,15 @@
 
   <div class="actions">
     <button class="btn btn-primary" id="syncBtn">
-      🔄 Sync Now
+      Sync Now
     </button>
     <button class="btn btn-secondary" id="openApp">
-      🌐 Open Kampus Web App
+      Open Kampus Web App
     </button>
   </div>
 
   <div class="footer">
-    Your campus life, unified. 🍕
+    Your campus life, unified.
   </div>
 
   <script src="popup.js"></script>

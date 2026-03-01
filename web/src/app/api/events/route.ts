@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const freeFood = searchParams.get("free_food") === "true";
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 300);
+    const limit = Math.min(parseInt(searchParams.get("limit") || "500", 10), 1000);
     const offset = parseInt(searchParams.get("offset") || "0", 10);
 
     const events = getEventsFromData({ freeFoodOnly: freeFood, limit, offset });

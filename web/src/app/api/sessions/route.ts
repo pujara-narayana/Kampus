@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
           where: { id: user.id },
           data: { googleToken: freshTokens as object },
         });
-        await createGoogleCalendarEvent(freshTokens, {
+        const created = await createGoogleCalendarEvent(freshTokens, {
           title: session.title || "Study Session",
           start: session.startTime,
           end: session.endTime ?? undefined,
@@ -165,6 +165,14 @@ export async function POST(req: NextRequest) {
           location: [session.building, session.room].filter(Boolean).join(", ") || undefined,
         });
         googleCalendarAdded = true;
+        if (created?.id) {
+          const settings = (user.settings as { studySessionGoogleEventIds?: string[] }) ?? {};
+          const ids = [...(settings.studySessionGoogleEventIds ?? []), created.id];
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { settings: { ...settings, studySessionGoogleEventIds: ids } as object },
+          });
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         const code = err && typeof err === "object" && "code" in err ? (err as { code?: number }).code : undefined;

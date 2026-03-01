@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { api } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
+import { Library, Users, CheckCircle, Flame, Pizza, Pin, Handshake, GraduationCap } from "lucide-react";
 
 interface FeedItem {
   id: string;
@@ -161,21 +162,21 @@ export default function SocialPage() {
     }
   };
 
-  const feedIcon = (type: string) => {
+  const FeedIcon = ({ type }: { type: string }) => {
     switch (type) {
       case "session_created":
       case "study_session_created":
-        return "📚";
+        return <Library className="w-4 h-4 mr-1 text-blue-500" />;
       case "session_joined":
-        return "👥";
+        return <Users className="w-4 h-4 mr-1 text-emerald-500" />;
       case "assignment_completed":
-        return "✅";
+        return <CheckCircle className="w-4 h-4 mr-1 text-green-500" />;
       case "streak_achieved":
-        return "🔥";
+        return <Flame className="w-4 h-4 mr-1 text-orange-500" />;
       case "free_food_spotted":
-        return "🍕";
+        return <Pizza className="w-4 h-4 mr-1 text-red-500" />;
       default:
-        return "📌";
+        return <Pin className="w-4 h-4 mr-1 text-muted-foreground" />;
     }
   };
 
@@ -211,8 +212,8 @@ export default function SocialPage() {
             <p className="text-center text-muted-foreground py-8">Loading feed...</p>
           ) : feed.length === 0 ? (
             <Card>
-              <CardContent className="py-12 text-center">
-                <span className="text-4xl">👥</span>
+              <CardContent className="py-12 text-center flex flex-col items-center">
+                <Users className="w-12 h-12 text-muted-foreground" />
                 <h3 className="mt-4 font-semibold">No Activity Yet</h3>
                 <p className="text-muted-foreground mt-2">
                   Connect with classmates to see their activity here.
@@ -230,9 +231,9 @@ export default function SocialPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
-                      <p className="text-sm">
-                        <span className="mr-1">{feedIcon(item.type)}</span>
-                        <span className="font-medium">{item.userName}</span>{" "}
+                      <p className="text-sm flex items-center flex-wrap">
+                        <FeedIcon type={item.type} />
+                        <span className="font-medium mr-1">{item.userName}</span>
                         {item.type === "session_created" || item.type === "study_session_created"
                           ? `created a study session: "${item.data?.title || ""}"`
                           : item.type === "assignment_completed"
@@ -259,8 +260,8 @@ export default function SocialPage() {
             <p className="text-center text-muted-foreground py-8">Loading connections...</p>
           ) : connections.length === 0 ? (
             <Card>
-              <CardContent className="py-12 text-center">
-                <span className="text-4xl">🤝</span>
+              <CardContent className="py-12 text-center flex flex-col items-center">
+                <Handshake className="w-12 h-12 text-muted-foreground" />
                 <h3 className="mt-4 font-semibold">No Connections Yet</h3>
                 <p className="text-muted-foreground mt-2">
                   Go to &quot;People in your courses&quot; to add classmates, or join study sessions to meet people.
@@ -341,8 +342,8 @@ export default function SocialPage() {
             <p className="text-center text-muted-foreground py-8">Loading...</p>
           ) : people.length === 0 ? (
             <Card>
-              <CardContent className="py-12 text-center">
-                <span className="text-4xl">🎓</span>
+              <CardContent className="py-12 text-center flex flex-col items-center">
+                <GraduationCap className="w-12 h-12 text-[#D00000]" />
                 <h3 className="mt-4 font-semibold">No one to show yet</h3>
                 <p className="text-muted-foreground mt-2">
                   Sync your courses from Canvas (via the extension) to see classmates here.

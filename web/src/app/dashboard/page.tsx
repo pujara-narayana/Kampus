@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api-client";
 import Link from "next/link";
 import { toast } from "sonner";
+import { Pizza, Play, Trash2, BookOpen, Target, FileText, Bell } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -49,6 +50,8 @@ export default function DashboardPage() {
   const [seeding, setSeeding] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [gradesExpanded, setGradesExpanded] = useState(false);
+  const [hideFreeFoodAlerts, setHideFreeFoodAlerts] = useState(false);
+  const [hidingFreeFood, setHidingFreeFood] = useState(false);
 
   async function loadData() {
     try {
@@ -92,6 +95,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  useEffect(() => {
+    api.getSettings().then((s) => setHideFreeFoodAlerts(s.hideFreeFoodAlerts ?? false)).catch(() => {});
   }, []);
 
   async function handleAcceptSessionInvite(sessionId: string) {
@@ -189,16 +196,16 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleSeed} disabled={seeding} variant="outline">
-            {seeding ? "Seeding..." : "🌱 Load Demo Data"}
+          <Button onClick={handleSeed} disabled={seeding} variant="outline" className="flex items-center gap-2">
+            <Play className="w-4 h-4" /> {seeding ? "Seeding..." : "Load Demo Data"}
           </Button>
           <Button
             onClick={handleClearDemo}
             disabled={clearing}
             variant="outline"
-            className="text-muted-foreground hover:text-destructive"
+            className="text-muted-foreground hover:text-destructive flex items-center gap-2"
           >
-            {clearing ? "Clearing..." : "Remove Demo Data"}
+            <Trash2 className="w-4 h-4" /> {clearing ? "Clearing..." : "Remove Demo Data"}
           </Button>
         </div>
       </div>
@@ -234,8 +241,8 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {freeFoodEvents.length > 0 ? `🍕 ${freeFoodEvents.length}` : "0"}
+            <div className="text-2xl font-bold flex items-center gap-2">
+              {freeFoodEvents.length > 0 ? <><Pizza className="w-6 h-6 text-[#D00000]" /> {freeFoodEvents.length}</> : "0"}
             </div>
             <p className="text-xs text-muted-foreground">
               {freeFoodEvents.length > 0 ? "events with food!" : "none right now"}
@@ -256,10 +263,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Free Food Alert */}
-      {freeFoodEvents.length > 0 && (
+      {freeFoodEvents.length > 0 && !hideFreeFoodAlerts && (
         <Card className="border-orange-400 bg-orange-50 dark:bg-orange-950/20">
           <CardContent className="flex items-center gap-4 py-4">
-            <span className="text-4xl">🍕</span>
+            <Pizza className="w-8 h-8 text-[#D00000]" />
             <div className="flex-1">
               <h3 className="font-semibold text-orange-700 dark:text-orange-300">
                 FREE FOOD ALERT!
@@ -270,11 +277,33 @@ export default function DashboardPage() {
                 </p>
               ))}
             </div>
-            <Link href="/dashboard/events?filter=free-food">
-              <Button variant="outline" className="border-orange-400">
-                View All
+            <div className="flex items-center gap-2">
+              <Link href="/dashboard/events?filter=free-food">
+                <Button variant="outline" className="border-orange-400">
+                  View All
+                </Button>
+              </Link>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground"
+                disabled={hidingFreeFood}
+                onClick={async () => {
+                  setHidingFreeFood(true);
+                  try {
+                    await api.updateSettings({ hideFreeFoodAlerts: true });
+                    setHideFreeFoodAlerts(true);
+                    toast.success("Free food alerts hidden. You can turn them back on in Settings.");
+                  } catch {
+                    toast.error("Could not update preference.");
+                  } finally {
+                    setHidingFreeFood(false);
+                  }
+                }}
+              >
+                {hidingFreeFood ? "..." : "Hide"}
               </Button>
-            </Link>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -290,62 +319,62 @@ export default function DashboardPage() {
               </Button>
             </Link>
           </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {courses.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No courses yet. Sync from Canvas via the extension.
-              </p>
-            ) : coursesWithGrades.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                Grades will appear here after the extension syncs from Canvas.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {(gradesExpanded
-                  ? coursesWithGrades
-                  : collapsedList
-                ).map((c: CourseWithGrade) => (
-                  <div
-                    key={c.id}
-                    className="flex items-center justify-between rounded-lg border px-3 py-2"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm truncate">
-                        {c.name || c.code || "Course"}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {c.code || ""} {c.term ? `· ${c.term}` : ""}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {c.currentGrade != null && (
-                        <Badge variant="secondary">{c.currentGrade}</Badge>
-                      )}
-                      {c.currentScore != null && (
-                        <span className="text-sm font-medium tabular-nums">
-                          {c.currentScore.toFixed(1)}%
-                        </span>
-                      )}
-                    </div>
+        </CardHeader>
+        <CardContent>
+          {courses.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No courses yet. Sync from Canvas via the extension.
+            </p>
+          ) : coursesWithGrades.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              Grades will appear here after the extension syncs from Canvas.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {(gradesExpanded
+                ? coursesWithGrades
+                : collapsedList
+              ).map((c: CourseWithGrade) => (
+                <div
+                  key={c.id}
+                  className="flex items-center justify-between rounded-lg border px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm truncate">
+                      {c.name || c.code || "Course"}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {c.code || ""} {c.term ? `· ${c.term}` : ""}
+                    </p>
                   </div>
-                ))}
-                {hasMoreToShow && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full text-muted-foreground"
-                    onClick={() => setGradesExpanded((e) => !e)}
-                  >
-                    {gradesExpanded
-                      ? "Show less"
-                      : `Show more (${hiddenCount} more)`}
-                  </Button>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {c.currentGrade != null && (
+                      <Badge variant="secondary">{c.currentGrade}</Badge>
+                    )}
+                    {c.currentScore != null && (
+                      <span className="text-sm font-medium tabular-nums">
+                        {c.currentScore.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {hasMoreToShow && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-muted-foreground"
+                  onClick={() => setGradesExpanded((e) => !e)}
+                >
+                  {gradesExpanded
+                    ? "Show less"
+                    : `Show more (${hiddenCount} more)`}
+                </Button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Upcoming Assignments */}
@@ -430,14 +459,14 @@ export default function DashboardPage() {
                   >
                     <span className="mt-0.5">
                       {n.type === "free_food_nearby"
-                        ? "🍕"
+                        ? <Pizza className="w-4 h-4 text-orange-500" />
                         : n.type === "assignment_due_soon"
-                          ? "📝"
+                          ? <FileText className="w-4 h-4 text-blue-500" />
                           : n.type === "session_invite"
-                            ? "📚"
+                            ? <BookOpen className="w-4 h-4 text-purple-500" />
                             : n.type === "event_recommendation"
-                              ? "🎯"
-                              : "🔔"}
+                              ? <Target className="w-4 h-4 text-emerald-500" />
+                              : <Bell className="w-4 h-4 text-muted-foreground" />}
                     </span>
                     <div className="flex-1">
                       <p className="text-sm font-medium">{n.title}</p>
@@ -536,7 +565,7 @@ export default function DashboardPage() {
                     className="flex items-center justify-between rounded-lg border p-3"
                   >
                     <div className="flex items-center gap-2">
-                      {e.hasFreeFood && <span>🍕</span>}
+                      {e.hasFreeFood && <Pizza className="w-4 h-4 text-[#D00000]" />}
                       <div>
                         <p className="font-medium text-sm">{e.title}</p>
                         <p className="text-xs text-muted-foreground">

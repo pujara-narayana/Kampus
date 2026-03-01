@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 
-/** GET /api/chat/conversations - List my conversations (only with accepted connections) */
+/** GET /api/chat/conversations - List my conversations (connections + any with existing messages, e.g. session invites) */
 export async function GET(req: NextRequest) {
   try {
     const user = await getAuthUser(req);
@@ -35,7 +35,8 @@ export async function GET(req: NextRequest) {
       orderBy: { updatedAt: "desc" },
     });
 
-    // Only include conversations where the other user is an accepted connection
+    // Include conversations where the other user is an accepted connection,
+    // OR where there are already messages (e.g. someone invited you to a session and sent a DM)
     const connectionUserIds = await prisma.connection
       .findMany({
         where: {
@@ -51,7 +52,9 @@ export async function GET(req: NextRequest) {
     const filtered = conversations
       .filter((c) => {
         const otherId = c.user1Id === user.id ? c.user2Id : c.user1Id;
-        return connectionSet.has(otherId);
+        const isConnection = connectionSet.has(otherId);
+        const hasMessages = (c.messages?.length ?? 0) > 0;
+        return isConnection || hasMessages;
       })
       .map((c) => {
         const other = c.user1Id === user.id ? c.user2 : c.user1;

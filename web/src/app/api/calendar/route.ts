@@ -105,8 +105,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const settings = (user.settings as { addedToGoogleEventIds?: string[] }) ?? {};
+    const settings = (user.settings as {
+      addedToGoogleEventIds?: string[];
+      studySessionGoogleEventIds?: string[];
+    }) ?? {};
     const campusAddedGoogleEventIds = settings.addedToGoogleEventIds ?? [];
+    const studySessionGoogleEventIds = settings.studySessionGoogleEventIds ?? [];
 
     const payload = {
       classes,
@@ -116,6 +120,7 @@ export async function GET(req: NextRequest) {
       googleEvents,
       googleConnected: Boolean(tokens?.access_token),
       campusAddedGoogleEventIds,
+      studySessionGoogleEventIds,
     };
     return NextResponse.json(serializeBigInt(payload));
   } catch (error) {

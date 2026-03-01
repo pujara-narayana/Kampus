@@ -54,7 +54,15 @@ function parseUnlDateRange(dateTime: string): { start: Date | null; end: Date | 
   return { start, end };
 }
 
+/**
+ * Free food: UNL campus events JSON has a "perks" field that often explicitly lists
+ * "Free Food" (e.g. "Free Food" or "Credit Free Food, Free Food, Perks Credit").
+ * We use perks first, then description keywords — no OpenAI needed for this source.
+ */
 function hasFreeFoodHint(perks: string | null | undefined, description: string | null | undefined): boolean {
+  const p = (perks ?? "").toLowerCase();
+  if (/free\s*food|food\s*provided|free\s*meal|free\s*snack|free\s*pizza|free\s*lunch|free\s*dinner|free\s*breakfast/.test(p))
+    return true;
   const text = [perks, description].filter(Boolean).join(" ").toLowerCase();
   return /food|pizza|snack|breakfast|lunch|dinner|coffee|donut|taco|refreshment|catering/i.test(text);
 }
@@ -87,6 +95,9 @@ function loadAndMapEvents(): EventFromData[] {
     const endTime = end ? end.toISOString() : null;
     const location = e.location ?? null;
     const hasFreeFood = hasFreeFoodHint(e.perks ?? null, e.description ?? null);
+    const foodDetails = hasFreeFood
+      ? (e.perks?.toLowerCase().includes("free food") ? "Free food (see perks)" : "See description")
+      : null;
     return {
       id: e.url ?? `ev-${i}`,
       title: String(e.title ?? ""),
@@ -96,7 +107,7 @@ function loadAndMapEvents(): EventFromData[] {
       building: location,
       room: null,
       hasFreeFood,
-      foodDetails: hasFreeFood ? "See description" : null,
+      foodDetails,
       eventType: e.categories != null ? String(e.categories) : null,
       orgName: e.host_organization != null ? String(e.host_organization) : null,
       eventUrl: e.url != null ? String(e.url) : null,
@@ -126,7 +137,7 @@ export function getEventsFromData(options: GetEventsOptions = {}): EventFromData
   list.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   const offset = options.offset ?? 0;
-  const limit = options.limit ?? 50;
+  const limit = options.limit ?? 500;
   return list.slice(offset, offset + limit);
 }
 

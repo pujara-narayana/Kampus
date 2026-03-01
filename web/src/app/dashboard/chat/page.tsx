@@ -20,6 +20,7 @@ import {
 } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -44,6 +45,8 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [respondingInvite, setRespondingInvite] = useState<string | null>(null);
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+  const [deletingConversation, setDeletingConversation] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -234,6 +237,48 @@ export default function ChatPage() {
       toast.error("Failed to decline invite");
     } finally {
       setRespondingInvite(null);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (activeView?.type !== "dm") return;
+    setDeletingMessageId(messageId);
+    try {
+      await api.deleteChatMessage(messageId);
+      setActiveView((prev) =>
+        prev?.type === "dm"
+          ? {
+              type: "dm",
+              data: {
+                ...prev.data,
+                messages: prev.data.messages.filter((msg) => msg.id !== messageId),
+              },
+            }
+          : prev
+      );
+      toast.success("Message deleted");
+    } catch {
+      toast.error("Failed to delete message");
+    } finally {
+      setDeletingMessageId(null);
+    }
+  };
+
+  const handleDeleteConversation = async () => {
+    if (activeView?.type !== "dm") return;
+    const convId = activeView.data.conversation.id;
+    const otherName = activeView.data.conversation.otherUser.displayName || "this conversation";
+    if (!confirm(`Delete your conversation with ${otherName}? All messages will be removed.`)) return;
+    setDeletingConversation(true);
+    try {
+      await api.deleteConversation(convId);
+      setActiveView(null);
+      await loadConversations();
+      toast.success("Conversation deleted");
+    } catch {
+      toast.error("Failed to delete conversation");
+    } finally {
+      setDeletingConversation(false);
     }
   };
 
@@ -489,6 +534,18 @@ export default function ChatPage() {
                   {showMembers ? "Hide Members" : "Members"}
                 </Button>
               )}
+              {activeView.type === "dm" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-destructive"
+                  disabled={deletingConversation}
+                  onClick={handleDeleteConversation}
+                  aria-label="Delete conversation"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
 
             <div className="flex flex-1 min-h-0">
@@ -497,14 +554,26 @@ export default function ChatPage() {
                 <div className="space-y-3">
                   {messages.map((m) => {
                     const isMe = m.senderId === user?.id;
+                    const isSessionInvite =
+                      activeView?.type === "dm" &&
+                      !isMe &&
+                      m.metadata?.type === "session_invite" &&
+                      typeof m.metadata?.sessionId === "string";
+                    const pendingInvite = isSessionInvite
+                      ? invites.find((i) => i.sessionId === m.metadata!.sessionId)
+                      : null;
+                    const canDeleteDm =
+                      activeView?.type === "dm" && isMe && !m.metadata?.type;
                     return (
                       <div
                         key={m.id}
-                        className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                        className={`group flex flex-col ${isMe ? "items-end" : "items-start"}`}
                       >
                         <div
                           className={`max-w-[75%] rounded-lg px-3 py-2 ${
                             isMe ? "bg-primary text-primary-foreground" : "bg-muted"
+                          } ${isSessionInvite ? "rounded-b-none" : ""} ${
+                            canDeleteDm ? "relative pr-8" : ""
                           }`}
                         >
                           {!isMe && (
@@ -513,14 +582,72 @@ export default function ChatPage() {
                             </p>
                           )}
                           <p className="text-sm whitespace-pre-wrap break-words">{m.body}</p>
-                          <p
-                            className={`text-xs mt-1 ${
-                              isMe ? "text-primary-foreground/80" : "text-muted-foreground"
+                          <div className="flex items-center justify-end gap-1 mt-1">
+                            <p
+                              className={`text-xs ${
+                                isMe ? "text-primary-foreground/80" : "text-muted-foreground"
+                              }`}
+                            >
+                              {new Date(m.createdAt).toLocaleString()}
+                            </p>
+                            {canDeleteDm && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/20"
+                                disabled={deletingMessageId === m.id}
+                                onClick={() => handleDeleteMessage(m.id)}
+                                aria-label="Delete message"
+                              >
+                                {deletingMessageId === m.id ? (
+                                  <span className="text-[10px]">…</span>
+                                ) : (
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        {isSessionInvite && (
+                          <div
+                            className={`max-w-[75%] w-fit rounded-b-lg rounded-t-none border border-t-0 px-3 py-2 ${
+                              isMe ? "border-primary/30 bg-primary/10" : "border-border bg-muted/80"
                             }`}
                           >
-                            {new Date(m.createdAt).toLocaleString()}
-                          </p>
-                        </div>
+                            {pendingInvite ? (
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs text-muted-foreground mr-1">
+                                  Session invite
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  className="h-7 text-xs"
+                                  disabled={respondingInvite === pendingInvite.sessionId}
+                                  onClick={() => handleAcceptInvite(pendingInvite)}
+                                >
+                                  {respondingInvite === pendingInvite.sessionId
+                                    ? "…"
+                                    : "Accept"}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs"
+                                  disabled={respondingInvite === pendingInvite.sessionId}
+                                  onClick={() => handleDeclineInvite(pendingInvite)}
+                                >
+                                  Deny
+                                </Button>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground italic">
+                                You already responded to this invite
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

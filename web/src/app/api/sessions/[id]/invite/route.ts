@@ -135,6 +135,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
           conversationId: conversation.id,
           senderId: user.id,
           body: dmBody,
+          metadata: { type: "session_invite", sessionId },
         },
       });
       await prisma.conversation.update({

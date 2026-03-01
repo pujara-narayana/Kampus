@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api-client";
+import { Pizza, MapPin, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 interface EventItem {
@@ -24,17 +25,24 @@ interface EventItem {
   imageUrl?: string | null;
 }
 
+const EVENTS_PAGE_SIZE = 30;
+
 export default function EventsPage() {
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [filter, setFilter] = useState("all");
   const [addingToCalendarId, setAddingToCalendarId] = useState<string | null>(null);
+  const [hideFreeFoodAlerts, setHideFreeFoodAlerts] = useState(false);
+  const [hidingFreeFood, setHidingFreeFood] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
-        const res = await api.getEvents();
-        setEvents(res.events as unknown as EventItem[]);
+        const res = await api.getEvents(false, EVENTS_PAGE_SIZE, 0);
+        setEvents((res.events as unknown as EventItem[]) ?? []);
+        setTotal(res.total ?? 0);
       } catch {
         // empty
       } finally {
@@ -44,14 +52,26 @@ export default function EventsPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    api.getSettings().then((s) => setHideFreeFoodAlerts(s.hideFreeFoodAlerts ?? false)).catch(() => {});
+  }, []);
+
+  async function loadMore() {
+    if (loadingMore || events.length >= total) return;
+    setLoadingMore(true);
+    try {
+      const res = await api.getEvents(false, EVENTS_PAGE_SIZE, events.length);
+      const next = (res.events as unknown as EventItem[]) ?? [];
+      setEvents((prev) => [...prev, ...next]);
+    } catch {
+      // ignore
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
   const filteredEvents =
-    filter === "free-food"
-      ? events.filter((e) => e.hasFreeFood)
-      : filter === "academic"
-        ? events.filter((e) => e.eventType === "academic")
-        : filter === "social"
-          ? events.filter((e) => e.eventType === "social")
-          : events;
+    filter === "free-food" ? events.filter((e) => e.hasFreeFood) : events;
 
   async function handleAddToCalendar(event: EventItem) {
     setAddingToCalendarId(event.id);
@@ -64,7 +84,7 @@ export default function EventsPage() {
         location: [event.building, event.room].filter(Boolean).join(", ") || undefined,
       });
       if (res?.googleCalendarAdded) {
-        toast.success("Added to Google Calendar!");
+        toast.success("Added to Calendar!");
       }
     } catch (err: unknown) {
       const code = err && typeof err === "object" && "code" in err ? (err as { code?: string }).code : undefined;
@@ -88,10 +108,10 @@ export default function EventsPage() {
       </div>
 
       {/* Free Food Banner */}
-      {events.some((e) => e.hasFreeFood) && (
+      {events.some((e) => e.hasFreeFood) && !hideFreeFoodAlerts && (
         <Card className="border-orange-400 bg-orange-50 dark:bg-orange-950/20">
           <CardContent className="flex items-center gap-4 py-4">
-            <span className="text-4xl">🍕</span>
+            <Pizza className="w-8 h-8 text-[#D00000]" />
             <div className="flex-1">
               <h3 className="font-semibold text-orange-700 dark:text-orange-300">
                 FREE FOOD SPOTTED!
@@ -101,15 +121,37 @@ export default function EventsPage() {
                 food right now!
               </p>
             </div>
-            <Button
-              variant={filter === "free-food" ? "default" : "outline"}
-              className="border-orange-400"
-              onClick={() =>
-                setFilter(filter === "free-food" ? "all" : "free-food")
-              }
-            >
-              {filter === "free-food" ? "Show All" : "Show Free Food"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant={filter === "free-food" ? "default" : "outline"}
+                className="border-orange-400"
+                onClick={() =>
+                  setFilter(filter === "free-food" ? "all" : "free-food")
+                }
+              >
+                {filter === "free-food" ? "Show All" : "Show Free Food"}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground"
+                disabled={hidingFreeFood}
+                onClick={async () => {
+                  setHidingFreeFood(true);
+                  try {
+                    await api.updateSettings({ hideFreeFoodAlerts: true });
+                    setHideFreeFoodAlerts(true);
+                    toast.success("Free food alerts hidden. You can turn them back on in Settings.");
+                  } catch {
+                    toast.error("Could not update preference.");
+                  } finally {
+                    setHidingFreeFood(false);
+                  }
+                }}
+              >
+                {hidingFreeFood ? "..." : "Hide"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -118,8 +160,6 @@ export default function EventsPage() {
         <TabsList>
           <TabsTrigger value="all">All Events</TabsTrigger>
           <TabsTrigger value="free-food">🍕 Free Food</TabsTrigger>
-          <TabsTrigger value="academic">Academic</TabsTrigger>
-          <TabsTrigger value="social">Social</TabsTrigger>
         </TabsList>
 
         <TabsContent value={filter} className="mt-4">
@@ -136,15 +176,15 @@ export default function EventsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredEvents.map((event) => (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filteredEvents.map((event) => (
                 <Card
                   key={event.id}
-                  className={`flex h-full flex-col ${
-                    event.hasFreeFood
+                  className={`flex h-full flex-col ${event.hasFreeFood
                       ? "border-orange-400 dark:border-orange-600"
                       : ""
-                  }`}
+                    }`}
                 >
                   {event.imageUrl && (
                     <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-t-lg bg-muted">
@@ -157,9 +197,9 @@ export default function EventsPage() {
                   )}
                   <CardHeader className="shrink-0 pb-2">
                     <div className="flex items-start justify-between">
-                      <CardTitle className="text-base leading-tight">
+                      <CardTitle className="text-base leading-tight flex items-center">
                         {event.hasFreeFood && (
-                          <span className="mr-1">🍕</span>
+                          <Pizza className="w-4 h-4 mr-2 text-[#D00000]" />
                         )}
                         {event.title}
                       </CardTitle>
@@ -172,14 +212,14 @@ export default function EventsPage() {
                   </CardHeader>
                   <CardContent className="flex min-h-0 flex-1 flex-col space-y-2">
                     <div className="flex items-center gap-2 text-sm">
-                      <span>📍</span>
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
                       <span>
                         {event.building || "TBD"}
                         {event.room ? ` ${event.room}` : ""}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
-                      <span>🕐</span>
+                      <Clock className="w-4 h-4 text-muted-foreground" />
                       <span>
                         {new Date(event.startTime).toLocaleDateString()} at{" "}
                         {new Date(event.startTime).toLocaleTimeString([], {
@@ -225,7 +265,19 @@ export default function EventsPage() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+              </div>
+              {events.length < total && (
+                <div className="flex justify-center pt-6">
+                  <Button
+                    variant="outline"
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                  >
+                    {loadingMore ? "Loading…" : "Show more"}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </TabsContent>
       </Tabs>
