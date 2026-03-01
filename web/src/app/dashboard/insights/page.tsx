@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/page-header";
 import { api, type BehaviorProfileResponse } from "@/lib/api-client";
 import { Pizza, Flame, TrendingDown, BookOpen, Video } from "lucide-react";
 import { BurnoutChart } from "@/components/insights/burnout-chart";
@@ -104,8 +106,30 @@ export default function InsightsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">Loading insights...</p>
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <Skeleton className="h-9 w-40" />
+          <Skeleton className="h-5 w-96 max-w-full" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader><Skeleton className="h-5 w-32" /></CardHeader>
+            <CardContent className="space-y-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-3 w-3/4" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><Skeleton className="h-5 w-28" /></CardHeader>
+            <CardContent className="space-y-4">
+              <Skeleton className="h-24 w-full rounded-lg" />
+            </CardContent>
+          </Card>
+        </div>
+        <Card>
+          <CardHeader><Skeleton className="h-5 w-48" /></CardHeader>
+          <CardContent><Skeleton className="h-64 w-full rounded-lg" /></CardContent>
+        </Card>
       </div>
     );
   }
@@ -125,17 +149,15 @@ export default function InsightsPage() {
     : null;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Insights</h1>
-        <p className="text-muted-foreground">
-          Your academic patterns and behavioral analytics.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        title="Insights"
+        description="Your academic patterns and behavioral analytics."
+      />
 
       {/* Behavioral Profile Card */}
       {behaviorProfile && profileMeta && (
-        <Card className={`border ${profileMeta.color}`}>
+        <Card className={`border transition-shadow hover:shadow-sm ${profileMeta.color}`}>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
               <span className="text-3xl">{profileMeta.icon}</span>

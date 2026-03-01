@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/page-header";
 import { api } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { Library, Users, CheckCircle, Flame, Pizza, Pin, Handshake, GraduationCap } from "lucide-react";
@@ -185,38 +187,50 @@ export default function SocialPage() {
   ).length;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Social</h1>
-        <p className="text-muted-foreground">
-          Connect with fellow students, see what your friends are up to.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        title="Social"
+        description="Connect with fellow students and see what your friends are up to."
+      />
 
       <Tabs defaultValue="feed" onValueChange={(v) => v === "people" && loadPeople()}>
-        <TabsList>
-          <TabsTrigger value="feed">Activity Feed</TabsTrigger>
-          <TabsTrigger value="connections">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="feed">Activity</TabsTrigger>
+          <TabsTrigger value="connections" className="gap-1">
             Connections
             {(connections.length > 0 || pendingReceivedCount > 0) && (
-              <Badge variant="secondary" className="ml-1">
-                {pendingReceivedCount > 0 ? `${pendingReceivedCount} pending` : connections.length}
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                {pendingReceivedCount > 0 ? pendingReceivedCount : connections.length}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="people">People in your courses</TabsTrigger>
+          <TabsTrigger value="people">People</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="feed" className="mt-4">
+        <TabsContent value="feed" className="mt-6">
           {loading ? (
-            <p className="text-center text-muted-foreground py-8">Loading feed...</p>
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="flex items-start gap-3 py-4">
+                    <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-48" />
+                      <Skeleton className="h-3 w-full" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           ) : feed.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center flex flex-col items-center">
-                <Users className="w-12 h-12 text-muted-foreground" />
-                <h3 className="mt-4 font-semibold">No Activity Yet</h3>
-                <p className="text-muted-foreground mt-2">
-                  Connect with classmates to see their activity here.
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="rounded-full bg-muted p-4 mb-4">
+                  <Users className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <h3 className="font-semibold text-foreground">No activity yet</h3>
+                <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                  Connect with classmates in Connections or find peers in People to see activity here.
                 </p>
               </CardContent>
             </Card>

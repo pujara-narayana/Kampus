@@ -5,9 +5,11 @@ import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/page-header";
 import { api } from "@/lib/api-client";
 import { toast } from "sonner";
-import { Pizza, RefreshCw } from "lucide-react";
+import { Pizza, RefreshCw, CalendarDays } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -221,14 +223,11 @@ export default function CalendarPage() {
   const gcalMessage = searchParams.get("message");
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Calendar</h1>
-          <p className="text-muted-foreground">
-            All your classes, assignments, events, and study sessions in one view.
-          </p>
-        </div>
+    <div className="space-y-8">
+      <PageHeader
+        title="Calendar"
+        description="All your classes, assignments, events, and study sessions in one view."
+      >
         {!googleConnected ? (
           <Button
             variant="outline"
@@ -241,7 +240,7 @@ export default function CalendarPage() {
         ) : (
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="text-xs">
-              Google Calendar connected
+              Google connected
             </Badge>
             <Button
               variant="outline"
@@ -251,7 +250,7 @@ export default function CalendarPage() {
               className="gap-1.5"
             >
               <RefreshCw className={`h-4 w-4 ${gcalSyncing ? "animate-spin" : ""}`} />
-              {gcalSyncing ? "Syncing…" : "Sync to Google Calendar"}
+              {gcalSyncing ? "Syncing…" : "Sync"}
             </Button>
             <Button
               variant="ghost"
@@ -264,7 +263,7 @@ export default function CalendarPage() {
             </Button>
           </div>
         )}
-      </div>
+      </PageHeader>
 
       {gcalStatus === "connected" && (
         <p className="text-sm text-green-600 dark:text-green-400">
@@ -289,25 +288,32 @@ export default function CalendarPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Calendar Grid */}
-        <Card className="lg:col-span-2" ref={calendarRef}>
+        <Card className="lg:col-span-2 transition-shadow hover:shadow-sm" ref={calendarRef}>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <button onClick={prevMonth} className="rounded p-1 hover:bg-accent">
+              <button onClick={prevMonth} className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground" aria-label="Previous month">
                 &larr;
               </button>
-              <CardTitle>
+              <CardTitle className="text-lg font-semibold">
                 {monthName} {year}
               </CardTitle>
-              <button onClick={nextMonth} className="rounded p-1 hover:bg-accent">
+              <button onClick={nextMonth} className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground" aria-label="Next month">
                 &rarr;
               </button>
             </div>
           </CardHeader>
           <CardContent>
             {loading ? (
-              <p className="text-center text-muted-foreground py-8">
-                Loading calendar...
-              </p>
+              <div className="space-y-2">
+                <div className="grid grid-cols-7 gap-px">
+                  {Array.from({ length: 7 }).map((_, i) => (
+                    <Skeleton key={i} className="h-6 rounded" />
+                  ))}
+                  {Array.from({ length: 35 }).map((_, i) => (
+                    <Skeleton key={i} className="h-20 rounded-lg" />
+                  ))}
+                </div>
+              </div>
             ) : (
               <div className="grid grid-cols-7 gap-px">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
@@ -368,9 +374,9 @@ export default function CalendarPage() {
         </Card>
 
         {/* Selected Date Details */}
-        <Card>
+        <Card className="transition-shadow hover:shadow-sm">
           <CardHeader>
-            <CardTitle>
+            <CardTitle className="text-base font-semibold">
               {selectedDate
                 ? new Date(selectedDate + "T00:00:00").toLocaleDateString(
                   "en-US",
@@ -381,13 +387,25 @@ export default function CalendarPage() {
           </CardHeader>
           <CardContent>
             {!selectedDate ? (
-              <p className="text-sm text-muted-foreground">
-                Click on a date to see details.
-              </p>
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="rounded-full bg-muted p-4 mb-3">
+                  <CalendarDays className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium text-foreground">Pick a date</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Click a day on the calendar to see what&apos;s scheduled.
+                </p>
+              </div>
             ) : selectedItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Nothing scheduled for this day.
-              </p>
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="rounded-full bg-muted p-4 mb-3">
+                  <CalendarDays className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium text-foreground">Nothing scheduled</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  This day is clear. Enjoy the break!
+                </p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {selectedItems.map((item) => {
