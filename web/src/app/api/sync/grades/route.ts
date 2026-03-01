@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
           userId: user.id,
           courseId: course.id,
           assignmentId,
-          score: g.score ?? null,
+          score: g.score ?? g.currentScore ?? null,
           pointsPossible: g.pointsPossible ?? null,
         },
       });
