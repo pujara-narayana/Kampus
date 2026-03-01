@@ -194,10 +194,17 @@ async function handleMessage(message, sender) {
     case 'MYRED_USER_DETECTED':
       console.log('[Kampus] MyRed user identity detected:', message.data);
       try {
+        const token = (await chrome.storage.local.get('kampusToken')).kampusToken;
         const regApiBase = (await chrome.storage.local.get('kampusApiBase')).kampusApiBase || 'http://localhost:3000';
+
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const regResponse = await fetch(`${regApiBase}/api/auth/extension-register`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify(message.data),
         });
         if (regResponse.ok) {
