@@ -1,6 +1,12 @@
-# 🎓 Kampus - Your Campus Life, Unified
+# Kampus - Your Campus Life, Unified
 
 **Kampus** is a full-stack student productivity platform built for UNL students. It integrates Canvas grades, MyRed schedule, NvolveU campus events, and Google Calendar into a single dashboard. An AI layer (OpenAI GPT-4o) analyzes behavioral patterns - procrastination, burnout risk, and study style and proactively surfaces actionable interventions. Helps students to improve their study workflows and actively improve their learning.
+
+## Why We Built This
+
+As UNL students ourselves, we noticed a frustrating reality: staying on top of academic life meant juggling Canvas for assignments, MyRed for your schedule, NvolveU for campus events, and Google Calendar for everything else — with no single place to see it all. Important deadlines slipped through, did not know about free food events, and there was no easy way to find classmates to study with.
+
+We built Kampus to fix that. By pulling all of these platforms into one unified dashboard and layering on AI-driven insights, we wanted to give students something their university portals never offered: a clear picture of their academic life, proactive nudges before burnout sets in, and tools that actually help them study smarter — not just harder.
 
 ## Features
 
@@ -345,3 +351,9 @@ npx prisma generate
 | `kampus-extension/background.js` | Extension service worker + sync logic |
 | `kampus-extension/content-scripts/canvas.js` | Canvas data scraper |
 | `kampus-extension/content-scripts/myred.js` | MyRed schedule scraper |
+
+## 👥 Team
+
+- *Narayana*
+- *Samarpan*
+- *Yohannes*
