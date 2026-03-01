@@ -140,10 +140,18 @@ export default function SessionsPage() {
       setInviteLoading(true);
       const myId = user?.id;
       try {
-        const [peopleRes, connRes] = await Promise.allSettled([
+        const [sessionRes, peopleRes, connRes] = await Promise.allSettled([
+          api.getSession(session.id),
           api.getPeople(),
           api.getConnections(),
         ]);
+        const participants: string[] =
+          sessionRes.status === "fulfilled" && sessionRes.value?.session
+            ? (Array.isArray((sessionRes.value.session as any).participants)
+                ? (sessionRes.value.session as any).participants.map((p: { userId: string }) => p.userId)
+                : [])
+            : [];
+        const alreadyInSession = new Set(participants);
         const people: InviteUser[] =
           peopleRes.status === "fulfilled"
             ? (((peopleRes.value as { people?: unknown[] }).people as InviteUser[]) || [])
@@ -172,7 +180,7 @@ export default function SessionsPage() {
         const seen = new Set<string>();
         const merged: InviteUser[] = [];
         for (const u of [...friends, ...people]) {
-          if (u.id && !seen.has(u.id)) {
+          if (u.id && !seen.has(u.id) && !alreadyInSession.has(u.id)) {
             seen.add(u.id);
             merged.push(u);
           }
@@ -238,6 +246,17 @@ export default function SessionsPage() {
       }
     } catch {
       toast.error("Failed to remove participant");
+    }
+  }
+
+  async function handleCreateGroupChat(sessionId: string) {
+    try {
+      await api.createSessionGroupChat(sessionId);
+      toast.success("Group chat created!");
+      closeSessionDetail();
+      router.push(`/dashboard/chat?session=${sessionId}`);
+    } catch {
+      toast.error("Failed to create group chat");
     }
   }
 
@@ -566,9 +585,22 @@ export default function SessionsPage() {
               </div>
               <Separator />
               <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
-                {/* Group Chat button - shown to creator and accepted participants */}
+                {/* Create group chat - any participant, when session has no group chat yet */}
                 {(detailSession.creatorId === user?.id ||
-                  (Array.isArray(detailSession.participants) && detailSession.participants.some((p: any) => p.userId === user?.id && p.status === "accepted"))) && (
+                  (Array.isArray(detailSession.participants) && detailSession.participants.some((p: any) => p.userId === user?.id && p.status === "accepted"))) &&
+                  !(detailSession as any).groupChat?.id && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleCreateGroupChat(detailSessionId!)}
+                  >
+                    Create group chat
+                  </Button>
+                )}
+                {/* Group Chat button - when group chat exists, for creator and accepted participants */}
+                {((detailSession as any).groupChat?.id) &&
+                  (detailSession.creatorId === user?.id ||
+                    (Array.isArray(detailSession.participants) && detailSession.participants.some((p: any) => p.userId === user?.id && p.status === "accepted"))) && (
                   <Button
                     size="sm"
                     variant="outline"

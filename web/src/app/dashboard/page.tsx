@@ -27,11 +27,28 @@ interface DashboardData {
   courses: CourseWithGrade[];
 }
 
+
+/** Parse term like "Spring 2026" or "Fall 2025" to a sort key (higher = more recent). */
+function termSortKey(term: string | null): number {
+  if (!term || !term.trim()) return 0;
+  const s = term.trim();
+  const yearMatch = s.match(/\b(20\d{2})\b/);
+  const year = yearMatch ? parseInt(yearMatch[1], 10) : 0;
+  const lower = s.toLowerCase();
+  // Spring < Summer < Fall within a year (chronological order)
+  let season = 0;
+  if (lower.includes("spring")) season = 1;
+  else if (lower.includes("summer")) season = 2;
+  else if (lower.includes("fall")) season = 3;
+  return year * 10 + season;
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [gradesExpanded, setGradesExpanded] = useState(false);
 
   async function loadData() {
     try {
@@ -139,9 +156,28 @@ export default function DashboardPage() {
   const courses = data?.courses || [];
   const unreadNotifs = (data?.notifications || []).filter((n: any) => !n.read);
   const freeFoodEvents = events.filter((e: any) => e.hasFreeFood);
-  const coursesWithGrades = courses.filter(
-    (c: CourseWithGrade) => c.currentGrade != null || c.currentScore != null
+  const coursesWithGrades = courses
+    .filter(
+      (c: CourseWithGrade) => c.currentGrade != null || c.currentScore != null
+    )
+    .sort(
+      (a, b) => termSortKey(b.term) - termSortKey(a.term)
+    );
+  // Collapsed: show all courses for current semester, or first N if that's a lot
+  const currentTermKey =
+    coursesWithGrades.length > 0
+      ? termSortKey(coursesWithGrades[0].term)
+      : 0;
+  const currentSemesterCourses = coursesWithGrades.filter(
+    (c) => termSortKey(c.term) === currentTermKey
   );
+  const GRADES_COLLAPSED_LIMIT = 5;
+  // When collapsed: show current semester only, but cap at GRADES_COLLAPSED_LIMIT so "Show more" appears
+  const collapsedList =
+    currentSemesterCourses.slice(0, GRADES_COLLAPSED_LIMIT);
+  const hasMoreToShow =
+    coursesWithGrades.length > collapsedList.length;
+  const hiddenCount = coursesWithGrades.length - collapsedList.length;
 
   return (
     <div className="space-y-6">
@@ -265,21 +301,24 @@ export default function DashboardPage() {
                 Grades will appear here after the extension syncs from Canvas.
               </p>
             ) : (
-              <div className="space-y-3">
-                {coursesWithGrades.map((c: CourseWithGrade) => (
+              <div className="space-y-2">
+                {(gradesExpanded
+                  ? coursesWithGrades
+                  : collapsedList
+                ).map((c: CourseWithGrade) => (
                   <div
                     key={c.id}
-                    className="flex items-center justify-between rounded-lg border p-3"
+                    className="flex items-center justify-between rounded-lg border px-3 py-2"
                   >
-                    <div>
-                      <p className="font-medium text-sm">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate">
                         {c.name || c.code || "Course"}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground truncate">
                         {c.code || ""} {c.term ? `· ${c.term}` : ""}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       {c.currentGrade != null && (
                         <Badge variant="secondary">{c.currentGrade}</Badge>
                       )}
@@ -291,6 +330,18 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 ))}
+                {hasMoreToShow && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-muted-foreground"
+                    onClick={() => setGradesExpanded((e) => !e)}
+                  >
+                    {gradesExpanded
+                      ? "Show less"
+                      : `Show more (${hiddenCount} more)`}
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>

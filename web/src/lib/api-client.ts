@@ -244,6 +244,10 @@ export const api = {
     fetchAPI<{ success: boolean; message: string; hiddenAt: string }>(`/api/sessions/${sessionId}/end`, {
       method: "POST",
     }),
+  createSessionGroupChat: (sessionId: string) =>
+    fetchAPI<{ groupChatId: string; created: boolean }>(`/api/sessions/${sessionId}/group-chat`, {
+      method: "POST",
+    }),
 
   // Insights
   getWeeklyInsights: () => fetchAPI<Record<string, unknown>>("/api/insights/weekly"),

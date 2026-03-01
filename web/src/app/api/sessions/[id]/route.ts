@@ -21,6 +21,7 @@ export async function GET(
         course: { select: { name: true, code: true } },
         assignment: { select: { name: true, dueAt: true } },
         participants: {
+          where: { status: { in: ["accepted", "invited"] } },
           include: {
             user: {
               select: { id: true, displayName: true, avatarUrl: true },

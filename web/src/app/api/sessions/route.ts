@@ -51,10 +51,10 @@ export async function GET(req: NextRequest) {
       include: {
         creator: { select: { id: true, displayName: true, avatarUrl: true } },
         course: { select: { name: true, code: true } },
-        _count: { select: { participants: true } },
+        groupChat: { select: { id: true } },
         participants: {
-          where: { userId: user.id },
-          select: { status: true }
+          where: { status: "accepted" },
+          select: { id: true, userId: true }
         }
       },
       orderBy: { startTime: "asc" },
@@ -63,8 +63,8 @@ export async function GET(req: NextRequest) {
     const mappedSessions = sessions.map(s => ({
       ...s,
       isCreator: s.creatorId === user.id,
-      hasJoined: s.participants.some(p => p.status === "accepted"),
-      participantCount: s._count.participants,
+      hasJoined: s.participants.some(p => p.userId === user.id),
+      participantCount: s.participants.length,
     }));
 
     return NextResponse.json({ sessions: mappedSessions });

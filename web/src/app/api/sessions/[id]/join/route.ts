@@ -16,7 +16,6 @@ export async function POST(
 
     const session = await prisma.studySession.findUnique({
       where: { id },
-      include: { _count: { select: { participants: true } } },
     });
 
     if (!session) {
@@ -33,7 +32,10 @@ export async function POST(
       );
     }
 
-    if (session._count.participants >= session.maxParticipants) {
+    const acceptedCount = await prisma.sessionParticipant.count({
+      where: { sessionId: id, status: "accepted" },
+    });
+    if (acceptedCount >= session.maxParticipants) {
       return NextResponse.json(
         { error: "Session is full" },
         { status: 400 }

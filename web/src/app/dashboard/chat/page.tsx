@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -29,6 +29,7 @@ type ActiveView =
 
 export default function ChatPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const withUserId = searchParams.get("with");
   const sessionId = searchParams.get("session");
@@ -98,20 +99,23 @@ export default function ChatPage() {
     [loadConversations]
   );
 
-  // Open from ?with=userId
+  // Open from ?with=userId, then clear URL so switching to other convos works
   useEffect(() => {
-    if (withUserId && user?.id && withUserId !== user.id) {
-      openDM(withUserId);
-    }
-  }, [withUserId, user?.id, openDM]);
+    if (!withUserId || !user?.id || withUserId === user.id) return;
+    openDM(withUserId).then(() => {
+      router.replace("/dashboard/chat");
+    });
+  }, [withUserId, user?.id, openDM, router]);
 
-  // Open from ?session=sessionId — wait until group chats are loaded
+  // Open from ?session=sessionId once group chats are loaded, then clear URL
   useEffect(() => {
-    if (sessionId && groupChats.length > 0) {
-      const gc = groupChats.find((g) => g.sessionId === sessionId);
-      if (gc) openGroupChat(gc.id);
-    }
-  }, [sessionId, groupChats, openGroupChat]);
+    if (!sessionId || groupChats.length === 0) return;
+    const gc = groupChats.find((g) => g.sessionId === sessionId);
+    if (!gc) return;
+    openGroupChat(gc.id).then(() => {
+      router.replace("/dashboard/chat");
+    });
+  }, [sessionId, groupChats, openGroupChat, router]);
 
   // Load on mount
   useEffect(() => {

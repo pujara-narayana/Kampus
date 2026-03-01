@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Gather stats for the week
-    const [assignmentsDue, assignmentsCompleted, behaviors, sessions, events] =
+    const [assignmentsDue, assignmentsCompleted, behaviors, sessions, eventsThisWeek, freeFoodThisWeek] =
       await Promise.all([
         prisma.assignment.count({
           where: {
@@ -57,18 +57,25 @@ export async function GET(req: NextRequest) {
             dueAt: { gte: weekStart, lt: weekEnd },
           },
         }),
-        prisma.sessionParticipant.count({
+        // Sessions: created by user OR user is accepted participant (creator may not be in participants)
+        prisma.studySession.count({
           where: {
-            userId: user.id,
-            status: "accepted",
-            session: {
-              startTime: { gte: weekStart, lt: weekEnd },
-            },
+            startTime: { gte: weekStart, lt: weekEnd },
+            OR: [
+              { creatorId: user.id },
+              { participants: { some: { userId: user.id, status: "accepted" } } },
+            ],
           },
         }),
         prisma.event.count({
           where: {
             startTime: { gte: weekStart, lt: weekEnd },
+          },
+        }),
+        prisma.event.count({
+          where: {
+            startTime: { gte: weekStart, lt: weekEnd },
+            hasFreeFood: true,
           },
         }),
       ]);
@@ -86,12 +93,9 @@ export async function GET(req: NextRequest) {
       0
     );
 
-    const freeFoodEvents = await prisma.event.count({
-      where: {
-        startTime: { gte: weekStart, lt: weekEnd },
-        hasFreeFood: true,
-      },
-    });
+    // Events: we have no user→event attendance model, so these are "on campus" counts, not "attended"
+    const eventsOnCampus = eventsThisWeek;
+    const freeFoodEventsOnCampus = freeFoodThisWeek;
 
     // Generate AI summary
     const aiSummary = await generateWeeklySummary({
@@ -100,11 +104,11 @@ export async function GET(req: NextRequest) {
       avgDaysBeforeDue,
       totalStudyHours,
       sessionsAttended: sessions,
-      eventsAttended: events,
-      freeFoodEvents,
+      eventsOnCampus,
+      freeFoodEventsOnCampus,
     });
 
-    // Save the summary
+    // Save the summary (store campus event counts; no per-user attendance)
     const summary = await prisma.weeklySummary.create({
       data: {
         userId: user.id,
@@ -114,8 +118,8 @@ export async function GET(req: NextRequest) {
         avgDaysBeforeDue,
         totalStudyHours,
         studySessionsAttended: sessions,
-        eventsAttended: events,
-        freeFoodEvents,
+        eventsAttended: eventsOnCampus,
+        freeFoodEvents: freeFoodEventsOnCampus,
         aiSummary,
       },
     });

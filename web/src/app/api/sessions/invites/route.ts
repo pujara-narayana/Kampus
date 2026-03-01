@@ -23,7 +23,10 @@ export async function GET(req: NextRequest) {
           include: {
             creator: { select: { id: true, displayName: true, avatarUrl: true } },
             course: { select: { name: true, code: true } },
-            _count: { select: { participants: true } },
+            participants: {
+              where: { status: "accepted" },
+              select: { id: true },
+            },
           },
         },
       },
@@ -40,7 +43,7 @@ export async function GET(req: NextRequest) {
       sessionStartTime: p.session.startTime,
       sessionStatus: p.session.status,
       maxParticipants: p.session.maxParticipants,
-      participantCount: p.session._count.participants,
+      participantCount: p.session.participants.length,
       creator: p.session.creator,
       course: p.session.course,
       invitedAt: p.invitedAt,

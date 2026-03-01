@@ -4,6 +4,10 @@ import { getAuthUser } from "@/lib/auth";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
+function orderedUserIds(a: string, b: string): [string, string] {
+  return a < b ? [a, b] : [b, a];
+}
+
 /**
  * POST /api/sessions/:id/invite
  * Invite users to a study session (creator only).
@@ -19,18 +23,26 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
     const { id: sessionId } = await params;
     const body = await req.json().catch(() => ({}));
-    const userIds = Array.isArray(body.userIds) ? body.userIds as string[] : [];
+    const raw = body.userIds ?? body.user_ids;
+    const userIds = Array.isArray(raw)
+      ? (raw as unknown[]).map((id) => (typeof id === "string" ? id : String(id))).filter(Boolean)
+      : [];
 
-    if (!sessionId || userIds.length === 0) {
+    if (!sessionId) {
       return NextResponse.json(
-        { error: "sessionId and userIds array are required" },
+        { error: "sessionId is required" },
+        { status: 400 }
+      );
+    }
+    if (userIds.length === 0) {
+      return NextResponse.json(
+        { error: "userIds array is required and must contain at least one user id" },
         { status: 400 }
       );
     }
 
     const session = await prisma.studySession.findUnique({
       where: { id: sessionId },
-      include: { _count: { select: { participants: true } } },
     });
 
     if (!session) {
@@ -56,7 +68,12 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
     const invited: string[] = [];
     const skipped: string[] = [];
-    let participantCount = session._count.participants;
+    let participantCount = await prisma.sessionParticipant.count({
+      where: {
+        sessionId,
+        status: { in: ["accepted", "invited"] },
+      },
+    });
 
     for (const userId of userIds) {
       if (userId === user.id) {
@@ -71,17 +88,24 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         },
       });
       if (existing) {
-        skipped.push(userId);
-        continue;
+        if (existing.status === "accepted" || existing.status === "invited") {
+          skipped.push(userId);
+          continue;
+        }
+        // Re-invite: they previously declined, update to invited and send again
+        await prisma.sessionParticipant.update({
+          where: { id: existing.id },
+          data: { status: "invited", respondedAt: null },
+        });
+      } else {
+        await prisma.sessionParticipant.create({
+          data: {
+            sessionId,
+            userId,
+            status: "invited",
+          },
+        });
       }
-
-      await prisma.sessionParticipant.create({
-        data: {
-          sessionId,
-          userId,
-          status: "invited",
-        },
-      });
 
       await prisma.notification.create({
         data: {
@@ -93,14 +117,46 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         },
       });
 
+      // Send a DM to the invitee: "[Inviter] invited you to [session title] group chat"
+      const inviterName = user.displayName || "Someone";
+      const sessionTitle = session.title || "a study session";
+      const dmBody = `${inviterName} invited you to the "${sessionTitle}" group chat.`;
+      const [user1Id, user2Id] = orderedUserIds(user.id, userId);
+      let conversation = await prisma.conversation.findUnique({
+        where: { user1Id_user2Id: { user1Id, user2Id } },
+      });
+      if (!conversation) {
+        conversation = await prisma.conversation.create({
+          data: { user1Id, user2Id },
+        });
+      }
+      await prisma.directMessage.create({
+        data: {
+          conversationId: conversation.id,
+          senderId: user.id,
+          body: dmBody,
+        },
+      });
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { updatedAt: new Date() },
+      });
+
       invited.push(userId);
       participantCount += 1;
     }
 
+    const message =
+      invited.length > 0
+        ? `Invited ${invited.length} user(s).`
+        : skipped.length > 0
+          ? `No one invited: ${skipped.length} already in session or session is full.`
+          : `Invited ${invited.length} user(s).`;
+
     return NextResponse.json({
       invited: invited.length,
       skipped: skipped.length,
-      message: `Invited ${invited.length} user(s).`,
+      message,
     });
   } catch (error) {
     console.error("Session invite error:", error);

@@ -138,14 +138,18 @@ export async function generateWeeklySummary(data: {
   avgDaysBeforeDue: number;
   totalStudyHours: number;
   sessionsAttended: number;
-  eventsAttended: number;
-  freeFoodEvents: number;
+  /** Events on campus this week (we don't track which ones the user attended) */
+  eventsOnCampus?: number;
+  /** Free food events on campus this week */
+  freeFoodEventsOnCampus?: number;
   topCourse?: string;
   topCourseHours?: number;
 }): Promise<string> {
   const client = getOpenAIClient();
+  const events = data.eventsOnCampus ?? 0;
+  const freeFood = data.freeFoodEventsOnCampus ?? 0;
 
-  const fallback = `This week you completed ${data.assignmentsCompleted} of ${data.assignmentsDue} assignments. You started assignments an average of ${data.avgDaysBeforeDue.toFixed(1)} days before the deadline. You attended ${data.eventsAttended} events${data.freeFoodEvents > 0 ? `, ${data.freeFoodEvents} of which had free food` : ""}. Keep it up!`;
+  const fallback = `This week you completed ${data.assignmentsCompleted} of ${data.assignmentsDue} assignments. You started assignments an average of ${data.avgDaysBeforeDue.toFixed(1)} days before the deadline. You attended ${data.sessionsAttended} study sessions.${events > 0 ? ` There were ${events} events on campus this week${freeFood > 0 ? `, ${freeFood} with free food` : ""}.` : ""} Keep it up!`;
 
   if (!client) return fallback;
 
@@ -153,9 +157,9 @@ export async function generateWeeklySummary(data: {
     const prompt = `Generate a brief, encouraging weekly summary for a college student based on these stats:
 - Completed ${data.assignmentsCompleted} of ${data.assignmentsDue} assignments
 - Started assignments avg ${data.avgDaysBeforeDue.toFixed(1)} days before deadline
-- ${data.totalStudyHours} total study hours this week
-- Attended ${data.sessionsAttended} study sessions
-- Attended ${data.eventsAttended} social events (${data.freeFoodEvents} had free food)
+- ${data.totalStudyHours} total study hours this week (from assignment work)
+- Attended ${data.sessionsAttended} study sessions (they created or joined)
+- On campus: ${events} events this week${freeFood > 0 ? ` (${freeFood} with free food)` : ""} — do NOT say "you attended" for events; we don't track event attendance
 ${data.topCourse ? `- Most time spent on: ${data.topCourse} (${data.topCourseHours}h)` : ""}
 
 Keep it 2-3 sentences max, personalized, upbeat, and end with a single emoji.`;

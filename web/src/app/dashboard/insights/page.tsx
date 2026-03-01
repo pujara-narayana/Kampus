@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api-client";
 
 interface PatternData {
@@ -32,10 +33,13 @@ interface WeeklyData {
   } | null;
 }
 
+const GRADES_COLLAPSED_LIMIT = 5;
+
 export default function InsightsPage() {
   const [patterns, setPatterns] = useState<PatternData | null>(null);
   const [weekly, setWeekly] = useState<WeeklyData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [gradesExpanded, setGradesExpanded] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -222,7 +226,10 @@ export default function InsightsPage() {
               </p>
             ) : (
               <div className="space-y-3">
-                {patterns.gradeTrends.map((course, i) => (
+                {(gradesExpanded
+                  ? patterns.gradeTrends
+                  : patterns.gradeTrends.slice(0, GRADES_COLLAPSED_LIMIT)
+                ).map((course, i) => (
                   <div
                     key={i}
                     className="flex items-center justify-between rounded-lg border p-3"
@@ -254,6 +261,18 @@ export default function InsightsPage() {
                     </div>
                   </div>
                 ))}
+                {patterns.gradeTrends.length > GRADES_COLLAPSED_LIMIT && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-muted-foreground"
+                    onClick={() => setGradesExpanded((e) => !e)}
+                  >
+                    {gradesExpanded
+                      ? "Show less"
+                      : `Show more (${patterns.gradeTrends.length - GRADES_COLLAPSED_LIMIT} more)`}
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
