@@ -1,38 +1,48 @@
-# 🎓 Kampus — Your Campus Life, Unified
+# Kampus - Your Campus Life, Unified
 
-**Kampus** is a full-stack student productivity platform built for UNL. It unifies Canvas grades, MyRed schedule, NvolveU campus events, and Google Calendar into a single dashboard. An AI layer (OpenAI GPT) analyzes behavioral patterns — procrastination, burnout risk, and study style — and proactively surfaces actionable interventions.
+**Kampus** is a full-stack student productivity platform built for UNL students. It integrates Canvas grades, MyRed schedule, NvolveU campus events, and Google Calendar into a single dashboard. An AI layer (OpenAI GPT-4o) analyzes behavioral patterns - procrastination, burnout risk, and study style and proactively surfaces actionable interventions. Helps students to improve their study workflows and actively improve their learning.
 
----
+## Why We Built This
 
-## 📦 Repository Structure
+As UNL students ourselves, we noticed a frustrating reality: staying on top of academic life meant juggling Canvas for assignments, MyRed for your schedule, NvolveU for campus events, and Google Calendar for everything else — with no single place to see it all. Important deadlines slipped through, did not know about free food events, and there was no easy way to find classmates to study with.
 
-```
-Kampus/
-├── web/                      # Next.js 16 web application (main platform)
-│   ├── src/
-│   │   ├── app/              # Next.js App Router (pages + API routes)
-│   │   ├── components/       # Reusable React components
-│   │   ├── lib/              # Utilities (auth, Prisma, Google Calendar, api-client)
-│   │   └── ...
-│   ├── prisma/               # Prisma schema + migrations
-│   ├── public/               # Static assets
-│   ├── Dockerfile            # Production Docker image (3-stage build)
-│   ├── .env                  # ← YOU MUST CREATE THIS (see below)
-│   └── package.json
-│
-├── kampus-extension/         # Chrome Extension (Manifest V3)
-│   ├── background.js         # Service worker — syncs data to Kampus API
-│   ├── content-scripts/      # Canvas, MyRed, NvolveU scrapers
-│   ├── popup/                # Extension popup UI
-│   └── manifest.json
-│
-├── docker-compose.yml        # Full-stack Docker Compose (web + postgres)
-└── README.md
-```
+We built Kampus to fix that. By pulling all of these platforms into one unified dashboard and layering on AI-driven insights, we wanted to give students something their university portals never offered: a clear picture of their academic life, proactive nudges before burnout sets in, and tools that actually help them study smarter — not just harder.
 
----
+## Features
 
-## 🚀 Quick Start — Local Development (No Docker)
+### Dashboard
+- Unified view of classes, assignments, events, and study sessions
+- Real-time free food alerts
+- Course grade tracking (synced from Canvas via extension)
+
+### Calendar
+- Monthly calendar with all event types
+- Google Calendar two-way sync
+- **Perfect My Schedule** — AI-powered schedule optimizer (detects overlaps, injects Focus Time blocks before deadlines, syncs improvements to Google Calendar)
+
+### Insights & Behavioral Analytics
+- Behavioral profile detection (Social Learner, Solo Grinder, etc.)
+- Procrastination Index (tracks how close to deadlines you submit work)
+- Burnout risk trend chart (calculated from study hours + event data)
+- Grade trajectory analysis
+- AI-generated recommendations
+
+### Events
+- Pulls campus events from NvolveU
+- Free food filter and alerts
+- Add events directly to Google Calendar
+
+### Social
+- Social feed of classmate activity
+- Connection requests
+- "People in Your Courses" — discover classmates
+
+### Study Sessions
+- Create and join collaborative study sessions
+- Real-time group chat
+- Integrated with Google Calendar
+
+## Quick Start - Local Development (No Docker)
 
 ### Prerequisites
 
@@ -61,7 +71,7 @@ Open `web/.env` and fill in all values (see **Environment Variables** section be
 
 ```bash
 cd web
-npm install
+npm i
 ```
 
 ### 4. Apply database migrations
@@ -75,14 +85,13 @@ npx prisma migrate dev --name init
 ### 5. Start the development server
 
 ```bash
-npm run dev
+npm run dev # within web directory
 ```
 
 The app will be available at **http://localhost:3000**.
 
----
 
-## 🐳 Docker — Production Deployment
+## Docker Deployment
 
 ### Prerequisites
 
@@ -167,51 +176,18 @@ docker compose up --build web -d
 cd web && npx prisma studio
 ```
 
-### Deploying to a VPS / Cloud VM
-
-```bash
-# On your server:
-git clone <repo-url> && cd Kampus
-
-# Create your .env at the repo root
-nano .env
-
-# Build and start
-docker compose up --build -d
-
-# Install nginx + certbot for HTTPS (recommended)
-# Then proxy requests from port 80/443 → 3000
-```
-
----
-
-## 🌐 Deploying to Vercel
-
-1. Push the `web/` directory to GitHub (or the full repo).
-2. In Vercel, set the **Root Directory** to `web/`.
-3. Add all environment variables in the Vercel dashboard under **Settings → Environment Variables** (see table below).
-4. After deployment, update `NEXT_PUBLIC_APP_URL` to your Vercel URL.
-5. Add the Vercel URL as an **authorized redirect URI** in your Google Cloud Console OAuth app.
-
-> ⚠️ **UNL SSO Note:** UNL Shibboleth (`shib.unl.edu`) requires the callback URL
-> (`https://your-vercel-url.vercel.app/api/auth/cas/callback`) to be registered
-> with UNL ITS. Contact its.unl.edu/helpdesk to register your production URL.
-> Email/password login works on Vercel without this step.
-
----
-
-## 🔐 Environment Variables
+## Environment Variables
 
 All variables go in `web/.env` for local development, or in your hosting platform's environment settings.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | ✅ | Full PostgreSQL connection string. Format: `postgresql://USER:PASS@HOST:PORT/DB` |
-| `JWT_SECRET` | ✅ | Secret string for signing JWTs. Use a long random string. |
-| `GOOGLE_CLIENT_ID` | ✅ | Google OAuth 2.0 Client ID. Get from [Google Cloud Console](https://console.cloud.google.com/). |
-| `GOOGLE_CLIENT_SECRET` | ✅ | Google OAuth 2.0 Client Secret. |
-| `NEXT_PUBLIC_APP_URL` | ✅ | The public-facing URL of the app (e.g. `http://localhost:3000` or `https://yourapp.vercel.app`). Used for OAuth redirect URIs. |
-| `OPENAI_API_KEY` | ✅ | OpenAI API key for AI Schedule Optimization. Get from [platform.openai.com/api-keys](https://platform.openai.com/api-keys). |
+| Variable |  Description |
+|----------|-------------|
+| `DATABASE_URL` |  Full PostgreSQL connection string. Format: `postgresql://USER:PASS@HOST:PORT/DB` |
+| `JWT_SECRET` |  Secret string for signing JWTs. Use a long random string. |
+| `GOOGLE_CLIENT_ID` |  Google OAuth 2.0 Client ID. Get from [Google Cloud Console](https://console.cloud.google.com/). |
+| `GOOGLE_CLIENT_SECRET` |  Google OAuth 2.0 Client Secret. |
+| `NEXT_PUBLIC_APP_URL` |  The public-facing URL of the app (e.g. `http://localhost:3000` or `https://yourapp.vercel.app`). Used for OAuth redirect URIs. |
+| `OPENAI_API_KEY` |  OpenAI API key for AI Schedule Optimization. Get from [platform.openai.com/api-keys](https://platform.openai.com/api-keys). |
 
 ### Setting up Google OAuth
 
@@ -228,17 +204,9 @@ All variables go in `web/.env` for local development, or in your hosting platfor
 
 ---
 
-## 🛠️ Database Setup
+## Database Setup
 
 Kampus uses **PostgreSQL** with **Prisma ORM**.
-
-### Hosted option (recommended for production)
-
-- [Neon](https://neon.tech/) — free tier, serverless Postgres
-- [Supabase](https://supabase.com/) — free tier with GUI
-- AWS RDS, PlanetScale, etc.
-
-Copy the connection string to `DATABASE_URL`.
 
 ### Running migrations
 
@@ -254,7 +222,7 @@ npx prisma migrate dev --name your_migration_name
 # Open Prisma Studio GUI
 npx prisma studio
 
-# Reset database (⚠️ destroys all data)
+# Reset database (destroys all data)
 npx prisma migrate reset
 ```
 
@@ -267,9 +235,7 @@ curl -X POST http://localhost:3000/api/seed \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
----
-
-## 🧩 Chrome Extension Setup
+## Chrome Extension Setup
 
 The Kampus Chrome Extension (Manifest V3) is the data bridge between UNL's web portals (Canvas, MyRed, NvolveU) and the Kampus platform.
 
@@ -283,7 +249,7 @@ The Kampus Chrome Extension (Manifest V3) is the data bridge between UNL's web p
 
 ### Installation (Developer Mode)
 
-> The extension is **not on the Chrome Web Store** — you load it manually.
+The extension is **not on the Chrome Web Store** — you load it manually.
 
 1. Open Chrome and navigate to `chrome://extensions`
 2. Enable **Developer mode** (toggle in the top-right)
@@ -312,7 +278,6 @@ const BASE_URL = "https://your-custom-domain.com";
   "https://myred.nebraska.edu/*",
   "https://myred.unl.edu/*",
   "https://unl.campuslabs.com/*",
-  "https://your-production-url.vercel.app/*"
 ]
 ```
 
@@ -328,84 +293,30 @@ Once installed and authenticated, the extension syncs automatically in the backg
 
 You can also trigger a manual sync from the extension popup.
 
-### Extension Permissions Explained
-
-| Permission | Why |
-|------------|-----|
-| `storage` | Stores your auth token locally |
-| `alarms` | Schedules periodic background syncs |
-| `tabs` | Detects which UNL portal you're on |
-| `cookies` | Reads session cookies for authenticated requests |
-| `notifications` | Pushes browser notifications for free food alerts |
-| `geolocation` | (Optional) Location-based event proximity alerts |
-| `offscreen` | Audio/video processing for background tasks |
-
----
-
-## 🏗️ Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | **Frontend** | Next.js 16 (App Router), React 19, Tailwind CSS v4 |
-| **UI Components** | shadcn/ui, Radix UI, Lucide React |
 | **Backend** | Next.js API Routes (serverless) |
 | **Database** | PostgreSQL + Prisma ORM |
 | **Auth** | JWT (email/password) + UNL Shibboleth CAS SSO |
 | **Google Calendar** | Google Calendar API v3 (OAuth 2.0) |
-| **AI** | OpenAI GPT-4o-mini (schedule optimization, pattern analysis) |
+| **AI** | OpenAI GPT-4o (schedule optimization, pattern analysis) |
 | **Charts** | Recharts |
 | **Real-time** | Socket.io (study session chat) |
 | **Browser Extension** | Chrome Manifest V3 |
 | **Containerization** | Docker + Docker Compose |
 
----
-
-## 📋 Features
-
-### Dashboard
-- Unified view of classes, assignments, events, and study sessions
-- Real-time free food alerts
-- Course grade tracking (synced from Canvas via extension)
-
-### Calendar
-- Monthly calendar with all event types
-- Google Calendar two-way sync
-- **✨ Perfect My Schedule** — AI-powered schedule optimizer (detects overlaps, injects Focus Time blocks before deadlines, syncs improvements to Google Calendar)
-
-### Insights & Behavioral Analytics
-- Behavioral profile detection (Social Learner, Solo Grinder, etc.)
-- Procrastination Index (tracks how close to deadlines you submit work)
-- Burnout risk trend chart (calculated from study hours + event data)
-- Grade trajectory analysis
-- AI-generated recommendations
-
-### Events
-- Pulls campus events from NvolveU
-- Free food filter and alerts
-- Add events directly to Google Calendar
-
-### Social
-- Social feed of classmate activity
-- Connection requests
-- "People in Your Courses" — discover classmates
-
-### Study Sessions
-- Create and join collaborative study sessions
-- Real-time group chat
-- Integrated with Google Calendar
-
----
-
-## 🔑 User Authentication
+## User Authentication
 
 Kampus supports two login methods:
 
-1. **Email & Password** — Works everywhere (local, Docker, Vercel). Register at `/register`.
+1. **Email & Password** — Works everywhere (local, Docker). Register at `/register`.
 2. **UNL NetID SSO** — Uses UNL Shibboleth CAS. Only works when your callback URL (`/api/auth/cas/callback`) is registered with UNL ITS. Works out of the box for `localhost` development. For production, contact UNL ITS Help Desk to register your URL.
 
----
 
-## 🧪 Local Dev Tips
+## Local Dev Tips
 
 ```bash
 # Run the app in dev mode (hot reload)
@@ -427,9 +338,7 @@ npx prisma db push
 npx prisma generate
 ```
 
----
-
-## 📁 Key File Reference
+## Key File Reference
 
 | Path | Purpose |
 |------|---------|
@@ -443,8 +352,8 @@ npx prisma generate
 | `kampus-extension/content-scripts/canvas.js` | Canvas data scraper |
 | `kampus-extension/content-scripts/myred.js` | MyRed schedule scraper |
 
----
+## 👥 Team
 
-## 📄 License
-
-MIT — built for the UNL Hackathon 2026.
+- *Narayana*
+- *Samarpan*
+- *Yohannes*
