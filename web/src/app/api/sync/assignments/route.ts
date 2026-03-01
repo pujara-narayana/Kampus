@@ -114,6 +114,72 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Upsert AssignmentBehavior for the predictive engine
+      // Calculate procrastination metrics based off due vs submitted
+      let daysBeforeDue: number | null = null;
+      let procrastinationScore: number | null = null;
+
+      if (a.dueAt && a.submittedAt) {
+        const dDue = new Date(a.dueAt).getTime();
+        const dSub = new Date(a.submittedAt).getTime();
+        daysBeforeDue = (dDue - dSub) / (1000 * 60 * 60 * 24);
+
+        // Simple scale mapping: > 5 days early = 0.0 (Good), < 0 days = 1.0 (Bad)
+        if (daysBeforeDue > 5) procrastinationScore = 0.0;
+        else if (daysBeforeDue < 0) procrastinationScore = 1.0;
+        else procrastinationScore = 1.0 - (daysBeforeDue / 5.0);
+      }
+
+      const behavior = await prisma.assignmentBehavior.findFirst({
+        where: { userId: user.id, assignmentId: upserted.id }
+      });
+
+      if (behavior) {
+        await prisma.assignmentBehavior.update({
+          where: { id: behavior.id },
+          data: {
+            dueAt: a.dueAt ? new Date(a.dueAt) : null,
+            submittedAt: a.submittedAt ? new Date(a.submittedAt) : null,
+            daysBeforeDue: daysBeforeDue !== null ? daysBeforeDue : undefined,
+            procrastinationScore: procrastinationScore !== null ? procrastinationScore : undefined
+          }
+        });
+      } else {
+        await prisma.assignmentBehavior.create({
+          data: {
+            userId: user.id,
+            assignmentId: upserted.id,
+            dueAt: a.dueAt ? new Date(a.dueAt) : null,
+            submittedAt: a.submittedAt ? new Date(a.submittedAt) : null,
+            daysBeforeDue: daysBeforeDue,
+            procrastinationScore: procrastinationScore,
+            // Fallbacks so engine doesn't crash:
+            actualHours: upserted.estimatedHours || 2.0
+          }
+        });
+      }
+
+      // Automatically store GradeHistory if assignment has a score 
+      if (a.score != null) {
+        // Check if a grade history exists for this assignment so we don't spam 500 rows per sync
+        const latestGrade = await prisma.gradeHistory.findFirst({
+          where: { userId: user.id, assignmentId: upserted.id },
+          orderBy: { recordedAt: 'desc' }
+        });
+
+        if (!latestGrade || Number(latestGrade.score) !== Number(a.score)) {
+          await prisma.gradeHistory.create({
+            data: {
+              userId: user.id,
+              courseId: course.id,
+              assignmentId: upserted.id,
+              score: a.score,
+              pointsPossible: a.pointsPossible ?? null
+            }
+          });
+        }
+      }
+
       results.push(upserted.id);
     }
 
