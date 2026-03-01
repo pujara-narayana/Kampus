@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
       courses.push(course);
     }
 
-    // 3. Seed assignments
+    // 3. Seed assignments (including past submitted for insights burnout/patterns)
     const assignmentData = [
       { canvasId: BigInt(20001), courseIdx: 0, name: "Lab 5: REST API Design", dueAt: daysFromNow(2), pointsPossible: 100, submissionTypes: ["online_upload"], hasSubmitted: false, estimatedHours: 3.0 },
       { canvasId: BigInt(20002), courseIdx: 0, name: "Midterm Project: Team Sprint", dueAt: daysFromNow(7), pointsPossible: 200, submissionTypes: ["online_upload", "online_text_entry"], hasSubmitted: false, estimatedHours: 12.0 },
@@ -88,6 +88,13 @@ export async function POST(req: NextRequest) {
       { canvasId: BigInt(20007), courseIdx: 4, name: "Lab 3: Neural Network", dueAt: daysFromNow(6), pointsPossible: 75, submissionTypes: ["online_upload"], hasSubmitted: false, estimatedHours: 6.0 },
       { canvasId: BigInt(20008), courseIdx: 0, name: "Lab 4: Unit Testing", dueAt: daysFromNow(-1), pointsPossible: 100, submissionTypes: ["online_upload"], hasSubmitted: true, score: 92, estimatedHours: 2.0 },
       { canvasId: BigInt(20009), courseIdx: 2, name: "Homework 7: Surface Integrals", dueAt: daysFromNow(-3), pointsPossible: 30, submissionTypes: ["online_upload"], hasSubmitted: true, score: 28, estimatedHours: 2.0 },
+      // Past submitted for insights demo (burnout chart, risk matrix, patterns)
+      { canvasId: BigInt(20010), courseIdx: 0, name: "Lab 3: API Design", dueAt: daysFromNow(-5), pointsPossible: 100, submissionTypes: ["online_upload"], hasSubmitted: true, score: 88, estimatedHours: 3.0 },
+      { canvasId: BigInt(20011), courseIdx: 1, name: "Assignment 5: BST", dueAt: daysFromNow(-7), pointsPossible: 50, submissionTypes: ["online_upload"], hasSubmitted: true, score: 85, estimatedHours: 4.0 },
+      { canvasId: BigInt(20012), courseIdx: 2, name: "Homework 6: Line Integrals", dueAt: daysFromNow(-9), pointsPossible: 30, submissionTypes: ["online_upload"], hasSubmitted: true, score: 90, estimatedHours: 2.0 },
+      { canvasId: BigInt(20013), courseIdx: 1, name: "Quiz 3: Graphs", dueAt: daysFromNow(-11), pointsPossible: 25, submissionTypes: ["online_quiz"], hasSubmitted: true, score: 22, estimatedHours: 1.0 },
+      { canvasId: BigInt(20014), courseIdx: 4, name: "Lab 2: Perceptrons", dueAt: daysFromNow(-12), pointsPossible: 75, submissionTypes: ["online_upload"], hasSubmitted: true, score: 78, estimatedHours: 5.0 },
+      { canvasId: BigInt(20015), courseIdx: 3, name: "Peer Review Draft", dueAt: daysFromNow(-14), pointsPossible: 50, submissionTypes: ["online_text_entry"], hasSubmitted: true, score: 95, estimatedHours: 2.0 },
     ];
 
     const assignments = [];
@@ -231,18 +238,72 @@ export async function POST(req: NextRequest) {
       ],
     });
 
-    // 10. Seed assignment behaviors
+    // 10. Seed assignment behaviors (spread over 14 days for insights burnout chart & patterns)
     await prisma.assignmentBehavior.deleteMany({ where: { userId: user.id } });
-    await prisma.assignmentBehavior.createMany({
-      data: [
-        { userId: user.id, assignmentId: assignments[7].id, dueAt: assignments[7].dueAt, submittedAt: daysFromNow(-2), daysBeforeDue: 1.0, estimatedHours: 2.0, actualHours: 2.5, procrastinationScore: 0.3 },
-        { userId: user.id, assignmentId: assignments[8].id, dueAt: assignments[8].dueAt, submittedAt: daysFromNow(-4), daysBeforeDue: 2.0, estimatedHours: 2.0, actualHours: 1.5, procrastinationScore: 0.2 },
-      ],
-    });
+    const behaviorData = [
+      { assignIdx: 7, daysAgo: 2, daysBeforeDue: 1.0, estH: 2.0, actualH: 2.5, procScore: 0.3 },
+      { assignIdx: 8, daysAgo: 4, daysBeforeDue: 2.0, estH: 2.0, actualH: 1.5, procScore: 0.2 },
+      { assignIdx: 9, daysAgo: 5, daysBeforeDue: 2.5, estH: 3.0, actualH: 3.5, procScore: 0.35 },
+      { assignIdx: 10, daysAgo: 7, daysBeforeDue: 1.0, estH: 4.0, actualH: 5.0, procScore: 0.55 },
+      { assignIdx: 11, daysAgo: 9, daysBeforeDue: 3.0, estH: 2.0, actualH: 2.0, procScore: 0.25 },
+      { assignIdx: 12, daysAgo: 11, daysBeforeDue: 0.5, estH: 1.0, actualH: 1.2, procScore: 0.85 },
+      { assignIdx: 13, daysAgo: 12, daysBeforeDue: 1.5, estH: 5.0, actualH: 6.0, procScore: 0.5 },
+      { assignIdx: 14, daysAgo: 13, daysBeforeDue: 2.0, estH: 2.0, actualH: 2.5, procScore: 0.4 },
+      { assignIdx: 15, daysAgo: 14, daysBeforeDue: 4.0, estH: 2.0, actualH: 1.8, procScore: 0.15 },
+    ];
+    for (const b of behaviorData) {
+      const assign = assignments[b.assignIdx];
+      if (!assign) continue; // skip if this assignment wasn't created (e.g. only 9 assignments in data)
+      await prisma.assignmentBehavior.create({
+        data: {
+          userId: user.id,
+          assignmentId: assign.id,
+          dueAt: assign.dueAt,
+          submittedAt: daysFromNow(-b.daysAgo),
+          daysBeforeDue: b.daysBeforeDue,
+          estimatedHours: b.estH,
+          actualHours: b.actualH,
+          procrastinationScore: b.procScore,
+        },
+      });
+    }
 
-    // 11. Seed weekly summary
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of week
+    // 10b. Seed grade history for insights grade trends
+    await prisma.gradeHistory.deleteMany({ where: { userId: user.id } });
+    const gradeHistoryData = [
+      { courseIdx: 0, score: 85, pointsPossible: 100, daysAgo: 45 },
+      { courseIdx: 0, score: 90, pointsPossible: 100, daysAgo: 30 },
+      { courseIdx: 0, score: 92, pointsPossible: 100, daysAgo: 2 },
+      { courseIdx: 1, score: 82, pointsPossible: 100, daysAgo: 40 },
+      { courseIdx: 1, score: 87, pointsPossible: 100, daysAgo: 20 },
+      { courseIdx: 2, score: 88, pointsPossible: 100, daysAgo: 35 },
+      { courseIdx: 2, score: 95, pointsPossible: 100, daysAgo: 10 },
+      { courseIdx: 2, score: 28, pointsPossible: 30, daysAgo: 4 },
+      { courseIdx: 3, score: 80, pointsPossible: 100, daysAgo: 25 },
+      { courseIdx: 3, score: 84, pointsPossible: 100, daysAgo: 5 },
+      { courseIdx: 4, score: 78, pointsPossible: 100, daysAgo: 15 },
+      { courseIdx: 4, score: 91, pointsPossible: 100, daysAgo: 3 },
+    ];
+    for (const g of gradeHistoryData) {
+      const d = new Date();
+      d.setDate(d.getDate() - g.daysAgo);
+      await prisma.gradeHistory.create({
+        data: {
+          userId: user.id,
+          courseId: courses[g.courseIdx].id,
+          score: g.score,
+          pointsPossible: g.pointsPossible,
+          recordedAt: d,
+        },
+      });
+    }
+
+    // 11. Seed weekly summary (weekStart = Monday to match insights API)
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() + mondayOffset);
     weekStart.setHours(0, 0, 0, 0);
     await prisma.weeklySummary.upsert({
       where: { userId_weekStart: { userId: user.id, weekStart } },

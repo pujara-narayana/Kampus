@@ -74,6 +74,29 @@ export async function GET(req: NextRequest) {
         ) / scoredBehaviors.length
         : null;
 
+    const totalStudyHours =
+      behaviors.reduce((sum, b) => sum + Number(b.actualHours ?? 0), 0);
+    const behaviorsWithDays = behaviors.filter((b) => b.daysBeforeDue != null);
+    const avgDaysBeforeDue =
+      behaviorsWithDays.length > 0
+        ? behaviorsWithDays.reduce(
+          (sum, b) => sum + Number(b.daysBeforeDue),
+          0
+        ) / behaviorsWithDays.length
+        : null;
+
+    // Events "this semester" (past 120 days) as proxy for demo — no per-user attendance
+    const semesterStart = new Date();
+    semesterStart.setDate(semesterStart.getDate() - 120);
+    const [eventsAttendedCount, freeFoodEventsCount] = await Promise.all([
+      prisma.event.count({
+        where: { startTime: { gte: semesterStart } },
+      }),
+      prisma.event.count({
+        where: { startTime: { gte: semesterStart }, hasFreeFood: true },
+      }),
+    ]);
+
     // Study patterns: group study sessions by day of week and hour
     const sessions = await prisma.studySession.findMany({
       where: {
@@ -312,6 +335,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       procrastinationIndex,
+      avgDaysBeforeDue: avgDaysBeforeDue != null ? Number(avgDaysBeforeDue.toFixed(1)) : null,
+      totalStudyHours: Number(totalStudyHours.toFixed(1)),
+      eventsAttended: eventsAttendedCount,
+      freeFoodEvents: freeFoodEventsCount,
       studyPatterns: {
         byDayOfWeek: studyByDay,
         byHour: studyByHour,
