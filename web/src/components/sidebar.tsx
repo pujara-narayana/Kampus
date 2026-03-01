@@ -22,6 +22,8 @@ import {
   Settings,
   LogOut,
   GraduationCap,
+  UtensilsCrossed,
+  DollarSign,
 } from "lucide-react";
 
 export function Sidebar() {
@@ -78,6 +80,31 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      <Separator className="bg-sidebar-border" />
+
+      {/* Dining balance - dummy data for presentation */}
+      <div className="px-3 py-3">
+        <div className="rounded-lg border border-sidebar-border bg-sidebar-accent/50 px-3 py-2.5">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2">
+            <UtensilsCrossed className="h-3.5 w-3.5" />
+            Dining
+          </div>
+          <div className="space-y-1.5 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Meal swipes</span>
+              <span className="font-semibold text-foreground">12 this week</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Dining dollars</span>
+              <span className="font-semibold text-foreground flex items-center gap-0.5">
+                <DollarSign className="h-3.5 w-3.5" />
+                247.50
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <Separator className="bg-sidebar-border" />
 
