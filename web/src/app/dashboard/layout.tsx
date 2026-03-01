@@ -3,12 +3,14 @@
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { Sidebar } from "@/components/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const isChatPage = pathname?.startsWith("/dashboard/chat");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -59,10 +61,18 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden bg-dashboard">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto p-6 lg:p-8">
-        <div className="mx-auto max-w-7xl">
-          {children}
-        </div>
+      <main
+        className={
+          isChatPage
+            ? "flex-1 overflow-y-auto"
+            : "flex-1 overflow-y-auto p-6 lg:p-8"
+        }
+      >
+        {isChatPage ? (
+          children
+        ) : (
+          <div className="mx-auto max-w-7xl">{children}</div>
+        )}
       </main>
     </div>
   );

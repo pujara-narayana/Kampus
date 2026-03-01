@@ -289,7 +289,7 @@ export default function ChatPage() {
     activeView.data.groupChat.creatorId === user?.id;
 
   return (
-    <div className="flex h-[calc(100vh-3rem)] -m-6">
+    <div className="flex h-full min-h-0">
       {/* Sidebar */}
       <div className="flex w-72 shrink-0 flex-col border-r bg-muted/30">
         <div className="border-b p-4">

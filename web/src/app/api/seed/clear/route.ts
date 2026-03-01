@@ -17,6 +17,16 @@ const DEMO_EVENT_SOURCE_IDS = [
   "ev-008",
 ];
 
+/** Demo friend emails — connections to these users are removed when clearing demo data. */
+const DEMO_FRIEND_EMAILS = [
+  "test@kampus.demo",
+  "alex@kampus.demo",
+  "jordan@kampus.demo",
+  "sam@kampus.demo",
+  "morgan@kampus.demo",
+  "casey@kampus.demo",
+];
+
 /**
  * POST /api/seed/clear — Removes demo data for the current user.
  */
@@ -72,6 +82,24 @@ export async function POST(req: NextRequest) {
     await prisma.feedItem.deleteMany({ where: { userId: user.id } });
     await prisma.weeklySummary.deleteMany({ where: { userId: user.id } });
 
+    // Remove connections between current user and demo friend accounts
+    const demoUserIds = await prisma.user
+      .findMany({
+        where: { email: { in: DEMO_FRIEND_EMAILS } },
+        select: { id: true },
+      })
+      .then((rows) => rows.map((r) => r.id));
+    if (demoUserIds.length > 0) {
+      await prisma.connection.deleteMany({
+        where: {
+          OR: [
+            { requesterId: user.id, receiverId: { in: demoUserIds } },
+            { receiverId: user.id, requesterId: { in: demoUserIds } },
+          ],
+        },
+      });
+    }
+
     await prisma.event.deleteMany({
       where: { sourceId: { in: DEMO_EVENT_SOURCE_IDS } },
     });
@@ -85,6 +113,7 @@ export async function POST(req: NextRequest) {
         streaks: true,
         feedItems: true,
         weeklySummary: true,
+        connections: demoUserIds?.length ?? 0,
         events: true,
       },
     });

@@ -5,6 +5,16 @@ import { getAuthUser, hashPassword } from "@/lib/auth";
 export const TEST_STUDENT_EMAIL = "test@kampus.demo";
 export const TEST_STUDENT_PASSWORD = "TestStudent123!";
 
+/** Demo friend accounts — same password for all. Created by seed and linked as accepted connections. */
+const DEMO_FRIENDS = [
+  { email: "test@kampus.demo", password: "TestStudent123!", displayName: "Test Student", nuid: "99999999" },
+  { email: "alex@kampus.demo", password: "DemoFriend1!", displayName: "Alex Chen", nuid: "99999998" },
+  { email: "jordan@kampus.demo", password: "DemoFriend1!", displayName: "Jordan Lee", nuid: "99999997" },
+  { email: "sam@kampus.demo", password: "DemoFriend1!", displayName: "Sam Rivera", nuid: "99999996" },
+  { email: "morgan@kampus.demo", password: "DemoFriend1!", displayName: "Morgan Taylor", nuid: "99999995" },
+  { email: "casey@kampus.demo", password: "DemoFriend1!", displayName: "Casey Kim", nuid: "99999994" },
+] as const;
+
 const UNL_BUILDINGS = [
   { name: "Avery Hall", shortName: "AVRY", lat: 40.8194, lng: -96.7056 },
   { name: "Kauffman Academic Residential Center", shortName: "Kauffman", lat: 40.8187, lng: -96.7069 },
@@ -261,54 +271,110 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 13. Create test student (same courses so they appear in "People in your courses")
-    let testStudent = await prisma.user.findFirst({
-      where: { email: TEST_STUDENT_EMAIL },
-    });
-    if (!testStudent) {
-      const testStudentPassword = await hashPassword(TEST_STUDENT_PASSWORD);
-      testStudent = await prisma.user.create({
-        data: {
-          email: TEST_STUDENT_EMAIL,
-          password: testStudentPassword,
-          displayName: "Test Student",
-          nuid: "99999999",
+    // 13. Create demo friend accounts (same courses so they appear in "People in your courses")
+    const demoUsers: { id: string; email: string; displayName: string; password: string }[] = [];
+    for (const friend of DEMO_FRIENDS) {
+      let demoUser = await prisma.user.findFirst({
+        where: { email: friend.email },
+      });
+      if (!demoUser) {
+        const hashed = await hashPassword(friend.password);
+        demoUser = await prisma.user.create({
+          data: {
+            email: friend.email,
+            password: hashed,
+            displayName: friend.displayName,
+            nuid: friend.nuid,
+          },
+        });
+      }
+      demoUsers.push({
+        id: demoUser.id,
+        email: demoUser.email!,
+        displayName: demoUser.displayName ?? friend.displayName,
+        password: friend.password,
+      });
+
+      // Give each demo user the same courses
+      for (const c of courseData) {
+        const tc = await prisma.course.upsert({
+          where: { canvasId_userId: { canvasId: c.canvasId, userId: demoUser.id } },
+          update: {},
+          create: {
+            canvasId: c.canvasId,
+            userId: demoUser.id,
+            name: c.name,
+            code: c.code,
+            term: c.term,
+            currentGrade: "B+",
+            currentScore: 85 + Math.floor(Math.random() * 10),
+          },
+        });
+        await prisma.userCourseLink.upsert({
+          where: { userId_courseId: { userId: demoUser.id, courseId: tc.id } },
+          update: {},
+          create: { userId: demoUser.id, courseId: tc.id, canvasCourseId: tc.canvasId },
+        });
+      }
+    }
+
+    // 14. Create accepted connections (friends) between current user and each demo user
+    for (const demoUser of demoUsers) {
+      const existing = await prisma.connection.findFirst({
+        where: {
+          OR: [
+            { requesterId: user.id, receiverId: demoUser.id },
+            { requesterId: demoUser.id, receiverId: user.id },
+          ],
         },
       });
+      if (existing) {
+        await prisma.connection.update({
+          where: { id: existing.id },
+          data: { status: "accepted" },
+        });
+      } else {
+        await prisma.connection.create({
+          data: {
+            requesterId: user.id,
+            receiverId: demoUser.id,
+            status: "accepted",
+          },
+        });
+      }
     }
-    const testStudentCourses: { id: string; canvasId: bigint }[] = [];
-    for (const c of courseData) {
-      const tc = await prisma.course.upsert({
-        where: { canvasId_userId: { canvasId: c.canvasId, userId: testStudent.id } },
-        update: {},
-        create: {
-          canvasId: c.canvasId,
-          userId: testStudent.id,
-          name: c.name,
-          code: c.code,
-          term: c.term,
-          currentGrade: "B+",
-          currentScore: 88,
-        },
-      });
-      testStudentCourses.push({ id: tc.id, canvasId: tc.canvasId });
-    }
-    for (const tc of testStudentCourses) {
-      await prisma.userCourseLink.upsert({
-        where: { userId_courseId: { userId: testStudent.id, courseId: tc.id } },
-        update: {},
-        create: { userId: testStudent.id, courseId: tc.id, canvasCourseId: tc.canvasId },
-      });
+
+    // 15. Add feed items from demo friends so the activity feed has content
+    const feedItemsFromFriends = [
+      { email: "alex@kampus.demo", type: "session_created", data: { title: "CSCE 310 Study Group" } },
+      { email: "jordan@kampus.demo", type: "assignment_completed", data: { courseName: "MATH 208", assignmentName: "Homework 8" } },
+      { email: "sam@kampus.demo", type: "streak_achieved", data: { type: "daily_study", count: 5 } },
+      { email: "morgan@kampus.demo", type: "free_food_spotted", data: { location: "Nebraska Union", food: "Pizza" } },
+      { email: "casey@kampus.demo", type: "session_joined", data: { title: "CSCE 361 Midterm Prep" } },
+      { email: "test@kampus.demo", type: "session_created", data: { title: "AI Lab 3 Collab" } },
+    ];
+    for (const item of feedItemsFromFriends) {
+      const author = demoUsers.find((u) => u.email === item.email);
+      if (author) {
+        await prisma.feedItem.create({
+          data: {
+            userId: author.id,
+            type: item.type,
+            data: item.data,
+            visibility: "public",
+          },
+        }).catch(() => {}); // ignore duplicate on re-seed
+      }
     }
 
     return NextResponse.json({
       message: "Demo data seeded successfully!",
-      testStudent: {
-        email: TEST_STUDENT_EMAIL,
-        password: TEST_STUDENT_PASSWORD,
-        displayName: testStudent.displayName,
-        hint: "Log in as this user in another browser/incognito to test friend requests and session invites.",
-      },
+      testAccounts: demoUsers.map((u) => ({
+        email: u.email,
+        password: u.password,
+        displayName: u.displayName,
+      })),
+      hint: "You now have 6 demo friends. Log in as any account in another browser/incognito to test DMs and session invites. All use the same courses.",
       seeded: {
         buildings: buildings.length,
         courses: courses.length,
@@ -319,7 +385,8 @@ export async function POST(req: NextRequest) {
         notifications: 6,
         streaks: 3,
         feedItems: 4,
-        testStudent: true,
+        demoFriends: demoUsers.length,
+        connections: demoUsers.length,
       },
     });
   } catch (error) {
