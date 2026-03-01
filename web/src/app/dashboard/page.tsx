@@ -49,6 +49,8 @@ export default function DashboardPage() {
   const [seeding, setSeeding] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [gradesExpanded, setGradesExpanded] = useState(false);
+  const [hideFreeFoodAlerts, setHideFreeFoodAlerts] = useState(false);
+  const [hidingFreeFood, setHidingFreeFood] = useState(false);
 
   async function loadData() {
     try {
@@ -92,6 +94,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  useEffect(() => {
+    api.getSettings().then((s) => setHideFreeFoodAlerts(s.hideFreeFoodAlerts ?? false)).catch(() => {});
   }, []);
 
   async function handleAcceptSessionInvite(sessionId: string) {
@@ -256,7 +262,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Free Food Alert */}
-      {freeFoodEvents.length > 0 && (
+      {freeFoodEvents.length > 0 && !hideFreeFoodAlerts && (
         <Card className="border-orange-400 bg-orange-50 dark:bg-orange-950/20">
           <CardContent className="flex items-center gap-4 py-4">
             <span className="text-4xl">🍕</span>
@@ -270,11 +276,33 @@ export default function DashboardPage() {
                 </p>
               ))}
             </div>
-            <Link href="/dashboard/events?filter=free-food">
-              <Button variant="outline" className="border-orange-400">
-                View All
+            <div className="flex items-center gap-2">
+              <Link href="/dashboard/events?filter=free-food">
+                <Button variant="outline" className="border-orange-400">
+                  View All
+                </Button>
+              </Link>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground"
+                disabled={hidingFreeFood}
+                onClick={async () => {
+                  setHidingFreeFood(true);
+                  try {
+                    await api.updateSettings({ hideFreeFoodAlerts: true });
+                    setHideFreeFoodAlerts(true);
+                    toast.success("Free food alerts hidden. You can turn them back on in Settings.");
+                  } catch {
+                    toast.error("Could not update preference.");
+                  } finally {
+                    setHidingFreeFood(false);
+                  }
+                }}
+              >
+                {hidingFreeFood ? "..." : "Hide"}
               </Button>
-            </Link>
+            </div>
           </CardContent>
         </Card>
       )}

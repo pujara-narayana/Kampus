@@ -4,6 +4,7 @@ import { getAuthUser } from "@/lib/auth";
 
 export interface UserSettings {
   sessionVisibility?: "all" | "friends";
+  hideFreeFoodAlerts?: boolean;
 }
 
 /**
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest) {
     const settings = (user.settings as UserSettings) ?? {};
     return NextResponse.json({
       sessionVisibility: settings.sessionVisibility ?? "all",
+      hideFreeFoodAlerts: settings.hideFreeFoodAlerts ?? false,
     });
   } catch (error) {
     console.error("Settings GET error:", error);
@@ -30,7 +32,7 @@ export async function GET(req: NextRequest) {
 
 /**
  * PATCH /api/settings — Update user settings.
- * Body: { sessionVisibility?: "all" | "friends" }
+ * Body: { sessionVisibility?: "all" | "friends", hideFreeFoodAlerts?: boolean }
  */
 export async function PATCH(req: NextRequest) {
   try {
@@ -41,11 +43,13 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const current = (user.settings as UserSettings) ?? {};
     const sessionVisibility = body.sessionVisibility as string | undefined;
+    const hideFreeFoodAlerts = body.hideFreeFoodAlerts as boolean | undefined;
     const nextSettings: UserSettings = {
       ...current,
       ...(sessionVisibility === "all" || sessionVisibility === "friends"
         ? { sessionVisibility }
         : {}),
+      ...(typeof hideFreeFoodAlerts === "boolean" ? { hideFreeFoodAlerts } : {}),
     };
     await prisma.user.update({
       where: { id: user.id },
@@ -53,6 +57,7 @@ export async function PATCH(req: NextRequest) {
     });
     return NextResponse.json({
       sessionVisibility: nextSettings.sessionVisibility ?? "all",
+      hideFreeFoodAlerts: nextSettings.hideFreeFoodAlerts ?? false,
     });
   } catch (error) {
     console.error("Settings PATCH error:", error);

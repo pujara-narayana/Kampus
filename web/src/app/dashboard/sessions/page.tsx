@@ -102,7 +102,7 @@ export default function SessionsPage() {
       });
       toast.success(
         res?.googleCalendarAdded
-          ? "Study session created and added to Google Calendar!"
+          ? "Study session created and added to Calendar!"
           : "Study session created!"
       );
       setDialogOpen(false);
@@ -119,7 +119,7 @@ export default function SessionsPage() {
       const res = await api.joinSession(sessionId);
       toast.success(
         res?.googleCalendarAdded
-          ? "Joined! Added to Google Calendar."
+          ? "Joined! Added to Calendar."
           : "Joined session!"
       );
       loadSessions();
@@ -254,6 +254,19 @@ export default function SessionsPage() {
       }
     } catch {
       toast.error("Failed to remove participant");
+    }
+  }
+
+  async function handleRevokeInvite(sessionId: string, userId: string) {
+    try {
+      await api.revokeSessionInvite(sessionId, userId);
+      toast.success("Invite revoked");
+      if (detailSessionId === sessionId) {
+        openSessionDetail(detailSessionId);
+      }
+      loadSessions();
+    } catch {
+      toast.error("Failed to revoke invite");
     }
   }
 
@@ -568,6 +581,16 @@ export default function SessionsPage() {
                         <Badge variant={p.status === "accepted" ? "secondary" : "outline"} className="text-xs">
                           {p.status}
                         </Badge>
+                        {detailSession?.creatorId === user?.id && p.userId !== user?.id && p.status === "invited" && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                            onClick={() => handleRevokeInvite(detailSessionId!, p.userId)}
+                          >
+                            Revoke
+                          </Button>
+                        )}
                         {detailSession?.creatorId === user?.id && p.userId !== user?.id && p.status === "accepted" && (
                           <Button
                             size="sm"

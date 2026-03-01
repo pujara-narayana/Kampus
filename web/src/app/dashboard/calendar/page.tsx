@@ -118,16 +118,20 @@ export default function CalendarPage() {
           });
         }
 
-        // Map Google Calendar events (campus-added ones use "event" color)
+        // Map Google Calendar events (study sessions → study_session, campus-added → event, else google)
         const googleEvents = (res as any).googleEvents || [];
+        const studySessionGcalIds = new Set((res as any).studySessionGoogleEventIds || []);
         const campusAddedIds = new Set((res as any).campusAddedGoogleEventIds || []);
         for (const g of googleEvents) {
+          let type = "google";
+          if (studySessionGcalIds.has(g.id)) type = "study_session";
+          else if (campusAddedIds.has(g.id)) type = "event";
           mapped.push({
             id: `gcal-${g.id}`,
             title: g.title,
             start: g.start,
             end: g.end,
-            type: campusAddedIds.has(g.id) ? "event" : "google",
+            type,
           });
         }
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
-import { estimateAssignmentTime } from "@/lib/ai";
+import { estimateAssignmentTime, getAssignmentEstimateCacheKey } from "@/lib/ai";
 
 export async function POST(req: NextRequest) {
   try {
@@ -69,24 +69,46 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Run time estimation if no estimate exists yet
+      // Run time estimation if no estimate exists yet (check DB cache first to avoid API calls)
       if (!upserted.estimatedHours) {
         try {
-          const estimate = await estimateAssignmentTime({
+          const params = {
             name: a.name || "",
             courseName: course.name || "",
             description: a.description || "",
             pointsPossible: Number(a.pointsPossible) || 0,
             submissionTypes: a.submissionTypes || [],
+          };
+          const contentHash = getAssignmentEstimateCacheKey(params);
+          const dbCached = await prisma.assignmentEstimateCache.findUnique({
+            where: { contentHash },
           });
+          const estimate = dbCached
+            ? { hours: Number(dbCached.estimatedHours), reasoning: dbCached.aiStudyTip }
+            : await estimateAssignmentTime(params);
 
           await prisma.assignment.update({
             where: { id: upserted.id },
             data: {
               estimatedHours: estimate.hours,
-              aiStudyTip: estimate.reasoning
+              aiStudyTip: estimate.reasoning,
             },
           });
+          // Persist to DB cache so future syncs (any user) skip the API
+          if (!dbCached) {
+            await prisma.assignmentEstimateCache.upsert({
+              where: { contentHash },
+              create: {
+                contentHash,
+                estimatedHours: estimate.hours,
+                aiStudyTip: estimate.reasoning,
+              },
+              update: {
+                estimatedHours: estimate.hours,
+                aiStudyTip: estimate.reasoning,
+              },
+            });
+          }
         } catch {
           // Non-critical: skip estimation on failure
         }

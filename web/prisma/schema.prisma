@@ -102,6 +102,16 @@ model Assignment {
   @@map("assignments")
 }
 
+/// Cache for assignment time estimates by content hash. Reduces OpenAI calls across users and restarts.
+model AssignmentEstimateCache {
+  contentHash     String   @unique @map("content_hash") @db.VarChar(64)
+  estimatedHours  Decimal  @map("estimated_hours") @db.Decimal(4, 1)
+  aiStudyTip      String   @map("ai_study_tip") @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("assignment_estimate_cache")
+}
+
 model ClassSchedule {
   id          String   @id @default(uuid())
   userId      String   @map("user_id")
@@ -299,6 +309,7 @@ model DirectMessage {
   conversationId String   @map("conversation_id")
   senderId       String   @map("sender_id")
   body           String   @db.Text
+  metadata       Json?    // e.g. { type: "session_invite", sessionId: "..." } for invite messages
   createdAt      DateTime @default(now()) @map("created_at")
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)

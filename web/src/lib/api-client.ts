@@ -29,6 +29,7 @@ export interface ChatMessage {
   senderId: string;
   senderName: string | null;
   createdAt: string;
+  metadata?: { type?: string; sessionId?: string } | null;
 }
 
 export interface ChatWithUserResponse {
@@ -159,11 +160,17 @@ export const api = {
   getUpcomingAssignments: () =>
     fetchAPI<{ assignments: Record<string, unknown>[] }>("/api/assignments/upcoming"),
 
-  // Events
-  getEvents: (freeFood?: boolean) =>
-    fetchAPI<{ events: Record<string, unknown>[] }>(
-      `/api/events${freeFood ? "?free_food=true" : ""}`
-    ),
+  // Events (limit/offset for "show more" pagination)
+  getEvents: (freeFood?: boolean, limit?: number, offset?: number) => {
+    const params = new URLSearchParams();
+    if (freeFood) params.set("free_food", "true");
+    if (limit != null) params.set("limit", String(limit));
+    if (offset != null) params.set("offset", String(offset));
+    const q = params.toString();
+    return fetchAPI<{ events: Record<string, unknown>[]; total: number }>(
+      `/api/events${q ? `?${q}` : ""}`
+    );
+  },
   getNearbyEvents: (lat: number, lng: number) =>
     fetchAPI<{ events: Record<string, unknown>[] }>(
       `/api/events/nearby?lat=${lat}&lng=${lng}`
@@ -192,6 +199,11 @@ export const api = {
       `/api/sessions/${sessionId}/invite`,
       { method: "POST", body: JSON.stringify({ userIds }) }
     ),
+  revokeSessionInvite: (sessionId: string, userId: string) =>
+    fetchAPI<{ success: boolean }>(`/api/sessions/${sessionId}/invite/revoke`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    }),
   getSessionInvites: () =>
     fetchAPI<{ invites: SessionInvite[] }>("/api/sessions/invites"),
   declineSessionInvite: (sessionId: string) =>
@@ -224,6 +236,10 @@ export const api = {
   // Chat (connections)
   getChatConversations: () =>
     fetchAPI<{ conversations: ChatConversation[] }>("/api/chat/conversations"),
+  deleteConversation: (conversationId: string) =>
+    fetchAPI<{ success: boolean }>(`/api/chat/conversations/${conversationId}`, {
+      method: "DELETE",
+    }),
   getChatWithUser: (userId: string, limit?: number, before?: string) => {
     const params = new URLSearchParams();
     if (limit != null) params.set("limit", String(limit));
@@ -235,6 +251,10 @@ export const api = {
     fetchAPI<{ message: ChatMessage }>("/api/chat/messages", {
       method: "POST",
       body: JSON.stringify({ conversationId, text }),
+    }),
+  deleteChatMessage: (messageId: string) =>
+    fetchAPI<{ success: boolean }>(`/api/chat/messages/${messageId}`, {
+      method: "DELETE",
     }),
 
   // Group Chat
@@ -280,9 +300,9 @@ export const api = {
 
   // Settings
   getSettings: () =>
-    fetchAPI<{ sessionVisibility: "all" | "friends" }>("/api/settings"),
-  updateSettings: (data: { sessionVisibility?: "all" | "friends" }) =>
-    fetchAPI<{ sessionVisibility: "all" | "friends" }>("/api/settings", {
+    fetchAPI<{ sessionVisibility: "all" | "friends"; hideFreeFoodAlerts?: boolean }>("/api/settings"),
+  updateSettings: (data: { sessionVisibility?: "all" | "friends"; hideFreeFoodAlerts?: boolean }) =>
+    fetchAPI<{ sessionVisibility: "all" | "friends"; hideFreeFoodAlerts?: boolean }>("/api/settings", {
       method: "PATCH",
       body: JSON.stringify(data),
     }),

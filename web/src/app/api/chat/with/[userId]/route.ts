@@ -25,24 +25,30 @@ export async function GET(
       );
     }
 
-    // Must be an accepted connection
-    const connection = await prisma.connection.findFirst({
-      where: {
-        OR: [
-          { requesterId: user.id, receiverId: otherUserId },
-          { requesterId: otherUserId, receiverId: user.id },
-        ],
-        status: "accepted",
-      },
-    });
-    if (!connection) {
+    const [user1Id, user2Id] = orderedIds(user.id, otherUserId);
+
+    // Allow if accepted connection, or if a conversation already exists (e.g. they sent you a session invite)
+    const [connection, existingConversation] = await Promise.all([
+      prisma.connection.findFirst({
+        where: {
+          OR: [
+            { requesterId: user.id, receiverId: otherUserId },
+            { requesterId: otherUserId, receiverId: user.id },
+          ],
+          status: "accepted",
+        },
+      }),
+      prisma.conversation.findUnique({
+        where: { user1Id_user2Id: { user1Id, user2Id } },
+      }),
+    ]);
+    if (!connection && !existingConversation) {
       return NextResponse.json(
         { error: "You can only chat with accepted connections" },
         { status: 403 }
       );
     }
 
-    const [user1Id, user2Id] = orderedIds(user.id, otherUserId);
     let conversation = await prisma.conversation.findUnique({
       where: { user1Id_user2Id: { user1Id, user2Id } },
       include: {
@@ -109,6 +115,7 @@ export async function GET(
         senderId: m.senderId,
         senderName: m.sender.displayName,
         createdAt: m.createdAt,
+        metadata: m.metadata as { type?: string; sessionId?: string } | null,
       })),
       hasMore,
       nextCursor: hasMore ? list[list.length - 1].id : null,
