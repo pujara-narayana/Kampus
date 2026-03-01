@@ -261,7 +261,7 @@
       position: fixed;
       bottom: 20px;
       right: 20px;
-      background: #10B981;
+      background: #D00000;
       color: white;
       padding: 8px 16px;
       border-radius: 8px;
