@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
+import { Prisma } from "@/generated/prisma/client";
 
 /**
  * POST /api/gcal/disconnect
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { googleToken: null },
+    data: { googleToken: Prisma.DbNull },
   });
 
   return NextResponse.json({ ok: true });

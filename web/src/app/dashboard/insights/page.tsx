@@ -6,7 +6,9 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api, type BehaviorProfileResponse } from "@/lib/api-client";
-import { Pizza, Flame } from "lucide-react";
+import { Pizza, Flame, TrendingDown, BookOpen, Video } from "lucide-react";
+import { BurnoutChart } from "@/components/insights/burnout-chart";
+import { RiskMatrix } from "@/components/insights/risk-matrix";
 
 interface PatternData {
   procrastinationIndex: number;
@@ -23,6 +25,16 @@ interface PatternData {
     currentScore: number | null;
     grades: { score: number | null; pointsPossible: number | null; recordedAt: Date }[];
   }[];
+  burnoutData?: any[];
+  riskMatrixData?: any[];
+  distractions?: {
+    courseId: string;
+    courseName: string;
+    title: string;
+    message: string;
+    impact: number;
+    app: string;
+  }[];
 }
 
 interface WeeklyData {
@@ -37,30 +49,30 @@ interface WeeklyData {
 const GRADES_COLLAPSED_LIMIT = 5;
 
 const PROFILE_META: Record<string, { label: string; icon: string; color: string }> = {
-  early_planner:      { label: "Early Planner",       icon: "📅", color: "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300" },
-  deadline_sprinter:  { label: "Deadline Sprinter",   icon: "⚡", color: "bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300" },
-  social_learner:     { label: "Social Learner",      icon: "👥", color: "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300" },
-  solo_grinder:       { label: "Solo Grinder",        icon: "🎯", color: "bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300" },
-  balanced_achiever:  { label: "Balanced Achiever",   icon: "⚖️", color: "bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300" },
+  early_planner: { label: "Early Planner", icon: "📅", color: "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300" },
+  deadline_sprinter: { label: "Deadline Sprinter", icon: "⚡", color: "bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300" },
+  social_learner: { label: "Social Learner", icon: "👥", color: "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300" },
+  solo_grinder: { label: "Solo Grinder", icon: "🎯", color: "bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300" },
+  balanced_achiever: { label: "Balanced Achiever", icon: "⚖️", color: "bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300" },
 };
 
 const ALERT_COLORS: Record<string, string> = {
-  info:     "border-blue-500/40 bg-blue-500/5",
-  warning:  "border-yellow-500/40 bg-yellow-500/5",
+  info: "border-blue-500/40 bg-blue-500/5",
+  warning: "border-yellow-500/40 bg-yellow-500/5",
   critical: "border-red-500/40 bg-red-500/5",
 };
 
 const ALERT_BADGE: Record<string, "secondary" | "outline" | "destructive"> = {
-  info:     "secondary",
-  warning:  "outline",
+  info: "secondary",
+  warning: "outline",
   critical: "destructive",
 };
 
 const REC_TYPE_ICON: Record<string, string> = {
-  study_session:      "📚",
-  campus_event:       "🎉",
-  create_solo_session:"✍️",
-  review_course:      "📖",
+  study_session: "📚",
+  campus_event: "🎉",
+  create_solo_session: "✍️",
+  review_course: "📖",
 };
 
 export default function InsightsPage() {
@@ -226,7 +238,10 @@ export default function InsightsPage() {
       {weekly?.summary?.aiSummary && (
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader>
-            <CardTitle className="text-base">Weekly Summary</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-primary" />
+              Weekly Summary
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm leading-relaxed">
@@ -236,8 +251,35 @@ export default function InsightsPage() {
         </Card>
       )}
 
+      {/* Predictive Visualizations */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <BurnoutChart data={patterns?.burnoutData || []} />
+        <RiskMatrix data={patterns?.riskMatrixData || []} />
+      </div>
+
+      {/* Simulated Distraction Telemetry */}
+      {patterns?.distractions && patterns.distractions.length > 0 && (
+        <div className="mt-6 mb-6">
+          {patterns.distractions.map((d, i) => (
+            <Card key={i} className="border-red-500/40 bg-red-500/5">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2 text-red-700 dark:text-red-400">
+                  <Video className="w-5 h-5" />
+                  {d.title}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm font-medium leading-relaxed dark:text-red-200/80">
+                  {d.message}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 mt-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
