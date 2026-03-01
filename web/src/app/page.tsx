@@ -16,7 +16,7 @@ const IMAGES = {
   studyGroup:
     "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&q=80",
   campusEvents:
-    "https://images.unsplash.com/photo-1541339907198-e087cabbcc30?w=800&q=80",
+    "https://images.unsplash.com/photo-1562774053-701939374585?w=800&q=80",
 } as const;
 
 export default function Home() {
@@ -173,12 +173,11 @@ export default function Home() {
           <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div className="order-2 flex justify-center lg:order-1 lg:justify-start">
               <div className="relative h-64 w-full overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-800 sm:h-72 sm:max-w-md">
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src={IMAGES.campusEvents}
                   alt="Campus and university life"
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 448px"
+                  className="h-full w-full object-cover"
                 />
               </div>
             </div>
