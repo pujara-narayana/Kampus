@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api-client";
+import { Pizza, MapPin, Clock } from "lucide-react";
 
 interface EventItem {
   id: string;
@@ -64,7 +65,7 @@ export default function EventsPage() {
       {events.some((e) => e.hasFreeFood) && (
         <Card className="border-orange-400 bg-orange-50 dark:bg-orange-950/20">
           <CardContent className="flex items-center gap-4 py-4">
-            <span className="text-4xl">🍕</span>
+            <Pizza className="w-8 h-8 text-[#D00000]" />
             <div className="flex-1">
               <h3 className="font-semibold text-orange-700 dark:text-orange-300">
                 FREE FOOD SPOTTED!
@@ -90,7 +91,7 @@ export default function EventsPage() {
       <Tabs value={filter} onValueChange={setFilter}>
         <TabsList>
           <TabsTrigger value="all">All Events</TabsTrigger>
-          <TabsTrigger value="free-food">🍕 Free Food</TabsTrigger>
+          <TabsTrigger value="free-food" className="flex items-center gap-1.5"><Pizza className="w-4 h-4" /> Free Food</TabsTrigger>
           <TabsTrigger value="academic">Academic</TabsTrigger>
           <TabsTrigger value="social">Social</TabsTrigger>
         </TabsList>
@@ -130,9 +131,9 @@ export default function EventsPage() {
                   )}
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
-                      <CardTitle className="text-base leading-tight">
+                      <CardTitle className="text-base leading-tight flex items-center">
                         {event.hasFreeFood && (
-                          <span className="mr-1">🍕</span>
+                          <Pizza className="w-4 h-4 mr-2 text-[#D00000]" />
                         )}
                         {event.title}
                       </CardTitle>
@@ -145,14 +146,14 @@ export default function EventsPage() {
                   </CardHeader>
                   <CardContent className="space-y-2">
                     <div className="flex items-center gap-2 text-sm">
-                      <span>📍</span>
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
                       <span>
                         {event.building || "TBD"}
                         {event.room ? ` ${event.room}` : ""}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
-                      <span>🕐</span>
+                      <Clock className="w-4 h-4 text-muted-foreground" />
                       <span>
                         {new Date(event.startTime).toLocaleDateString()} at{" "}
                         {new Date(event.startTime).toLocaleTimeString([], {

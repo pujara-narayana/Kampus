@@ -193,11 +193,11 @@ export async function POST(req: NextRequest) {
     await prisma.notification.createMany({
       data: [
         { userId: user.id, type: "assignment_due_soon", title: "CSCE 310 Quiz 4 due tomorrow!", body: "Quiz 4: Trees & Heaps is due in 24 hours. Estimated time: 1.5h." },
-        { userId: user.id, type: "free_food_nearby", title: "🍕 Free pizza at Kauffman!", body: "Women in STEM Mixer has free pizza — 3 min walk from Avery Hall." },
+        { userId: user.id, type: "free_food_nearby", title: "Free pizza at Kauffman!", body: "Women in STEM Mixer has free pizza — 3 min walk from Avery Hall." },
         { userId: user.id, type: "session_invite", title: "New study session for CSCE 361", body: "Someone created a study session for your course." },
         { userId: user.id, type: "event_recommendation", title: "Career Fair tomorrow!", body: "Tech Career Fair at Nebraska Union — 12 CS companies attending." },
         { userId: user.id, type: "assignment_due_soon", title: "Lab 5 due in 2 days", body: "CSCE 361 Lab 5: REST API Design. Estimated: 3h." },
-        { userId: user.id, type: "free_food_nearby", title: "🍩 Free donuts at Love Library", body: "Study Abroad Info Session has free donuts tomorrow." },
+        { userId: user.id, type: "free_food_nearby", title: "Free donuts at Love Library", body: "Study Abroad Info Session has free donuts tomorrow." },
       ],
     });
 
@@ -248,7 +248,7 @@ export async function POST(req: NextRequest) {
         eventsAttended: 2,
         freeFoodEvents: 2,
         campusBuildingsVisited: 5,
-        aiSummary: "This week you completed 2 of 7 assignments on time. You spent the most time on CSCE 361 (8.5 hours) and the least on ENGL 150 (1.2 hours). You started assignments an average of 1.8 days before the deadline. You attended 2 events, both of which had free food. You're on a 7-day study streak — keep it up! 🔥",
+        aiSummary: "This week you completed 2 of 7 assignments on time. You spent the most time on CSCE 361 (8.5 hours) and the least on ENGL 150 (1.2 hours). You started assignments an average of 1.8 days before the deadline. You attended 2 events, both of which had free food. You're on a 7-day study streak — keep it up!",
       },
     });
 
