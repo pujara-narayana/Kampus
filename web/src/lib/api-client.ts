@@ -199,6 +199,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(event),
     }),
+  /** Push Kampus class schedule to Google Calendar (recurring events). */
+  syncCalendarToGoogle: () =>
+    fetchAPI<{ ok: boolean; synced: number; total: number }>("/api/calendar/sync-to-google", {
+      method: "POST",
+    }),
 
   // Courses (with grades from extension sync)
   getCourses: () =>

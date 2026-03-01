@@ -183,6 +183,101 @@ export async function createGoogleCalendarEvent(
   return id ? { id, htmlLink } : null;
 }
 
+/** Map single-letter day codes (M,T,W,R,F) to Google RRULE BYDAY (MO,TU,WE,TH,FR). */
+function daysToByDay(days: string): string {
+  const map: Record<string, string> = { M: "MO", T: "TU", W: "WE", R: "TH", F: "FR" };
+  return (days || "")
+    .replace(/\s/g, "")
+    .split("")
+    .map((d) => map[d.toUpperCase()])
+    .filter(Boolean)
+    .join(",");
+}
+
+export interface CreateRecurringGoogleCalendarEventInput {
+  title: string;
+  days: string; // e.g. "MWF"
+  startTime: string; // "11:30" 24h
+  endTime: string; // "12:20" 24h
+  location?: string;
+  description?: string;
+  /** First date (YYYY-MM-DD) for the series. Defaults to start of current month. */
+  startDate?: string;
+  /** Last date (YYYY-MM-DD) for the series. Defaults to end of semester. */
+  untilDate?: string;
+}
+
+/**
+ * Create a recurring event on the user's primary Google Calendar (e.g. for a class).
+ */
+export async function createRecurringGoogleCalendarEvent(
+  storedTokens: GoogleTokens,
+  input: CreateRecurringGoogleCalendarEventInput
+): Promise<{ id: string; htmlLink?: string } | null> {
+  const byDay = daysToByDay(input.days);
+  if (!byDay) return null;
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const startDate = input.startDate
+    ? new Date(input.startDate + "T12:00:00")
+    : new Date(year, month, 1);
+  const untilDate = input.untilDate
+    ? new Date(input.untilDate + "T23:59:59")
+    : new Date(year, month <= 4 ? 5 : 11, month <= 4 ? 15 : 15); // May 15 or Dec 15
+
+  const [sh, sm] = (input.startTime || "08:00").split(":").map(Number);
+  const [eh, em] = (input.endTime || "09:00").split(":").map(Number);
+  const firstStart = new Date(startDate);
+  firstStart.setHours(sh, sm || 0, 0, 0);
+  const firstEnd = new Date(startDate);
+  firstEnd.setHours(eh, em || 0, 0, 0);
+
+  const dayNums = (input.days || "").replace(/\s/g, "").split("").map((d) => {
+    const m: Record<string, number> = { M: 1, T: 2, W: 3, R: 4, F: 5 };
+    return m[d.toUpperCase()];
+  }).filter((n) => n != null) as number[];
+  for (let d = 0; d < 7; d++) {
+    const d2 = new Date(startDate);
+    d2.setDate(d2.getDate() + d);
+    if (dayNums.includes(d2.getDay())) {
+      firstStart.setTime(d2.getTime());
+      firstStart.setHours(sh, sm || 0, 0, 0);
+      firstEnd.setTime(d2.getTime());
+      firstEnd.setHours(eh, em || 0, 0, 0);
+      break;
+    }
+  }
+
+  const untilRrule = untilDate.toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
+  const rrule = `RRULE:FREQ=WEEKLY;BYDAY=${byDay};UNTIL=${untilRrule}`;
+
+  const oauth2 = getOAuth2Client();
+  oauth2.setCredentials({
+    access_token: storedTokens.access_token,
+    refresh_token: storedTokens.refresh_token,
+    expiry_date: storedTokens.expiry_date,
+  });
+
+  const calendar = google.calendar({ version: "v3", auth: oauth2 });
+  const res = await calendar.events.insert({
+    calendarId: "primary",
+    requestBody: {
+      summary: input.title,
+      description: input.description ?? undefined,
+      location: input.location ?? undefined,
+      start: { dateTime: firstStart.toISOString() },
+      end: { dateTime: firstEnd.toISOString() },
+      recurrence: [rrule],
+    },
+  });
+
+  const id = res.data.id ?? null;
+  const htmlLink = res.data.htmlLink ?? undefined;
+  return id ? { id, htmlLink } : null;
+}
+
 export function isGoogleCalendarConfigured(): boolean {
   return Boolean(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET);
 }

@@ -165,10 +165,8 @@ async function handleMessage(message, sender) {
         console.log('[Kampus] Schedule synced to backend:', schedResult.data?.synced ?? message.data.length, 'classes');
       }
 
-      // Close the background tab if it was opened by our scraper
-      if (sender && sender.tab && sender.tab.id && sender.tab.pinned) {
-        chrome.tabs.remove(sender.tab.id).catch(() => { });
-      }
+      // Do not close the tab after scraping — user may have just logged in and want to stay on MyRed.
+      // The background scraper timeout (60s) still closes the tab if it was never focused.
 
       return { success: schedResult.ok, status: schedResult.status };
 
@@ -237,15 +235,7 @@ async function handleMessage(message, sender) {
           });
           console.log('[Kampus] Auto-registered from MyRed:', regResult.user?.email || regResult.user?.displayName);
 
-          // Close the MyRed popup/tab after successful registration
-          if (sender && sender.tab && sender.tab.id) {
-            try {
-              await chrome.tabs.remove(sender.tab.id);
-              console.log('[Kampus] Closed MyRed popup tab.');
-            } catch (e) {
-              // Tab may already be closed
-            }
-          }
+          // Do not close the tab — user may want to stay on MyRed (e.g. view schedule, use the site).
         }
       } catch (err) {
         console.warn('[Kampus] MyRed auto-register failed:', err.message);

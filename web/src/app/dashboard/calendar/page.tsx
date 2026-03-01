@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api-client";
-import { Pizza } from "lucide-react";
+import { toast } from "sonner";
+import { Pizza, RefreshCw } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -68,6 +69,7 @@ export default function CalendarPage() {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [gcalConnecting, setGcalConnecting] = useState(false);
   const [gcalDisconnecting, setGcalDisconnecting] = useState(false);
+  const [gcalSyncing, setGcalSyncing] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
 
   const year = currentDate.getFullYear();
@@ -170,6 +172,30 @@ export default function CalendarPage() {
     }
   };
 
+  async function handleSyncToGoogleCalendar() {
+    if (!googleConnected) return;
+    setGcalSyncing(true);
+    try {
+      const res = await api.syncCalendarToGoogle();
+      if (res.synced > 0) {
+        toast.success(`Synced ${res.synced} class${res.synced === 1 ? "" : "es"} to Google Calendar.`);
+      } else if (res.total === 0) {
+        toast.info("No classes to sync. Sync your schedule from MyRed in Settings first.");
+      } else {
+        toast.success("Your Google Calendar is already up to date with your classes.");
+      }
+    } catch (e: any) {
+      const msg = e?.data?.error ?? e?.message ?? "Sync failed";
+      if (String(msg).includes("not connected")) {
+        toast.error("Connect Google Calendar first, then sync.");
+      } else {
+        toast.error(msg);
+      }
+    } finally {
+      setGcalSyncing(false);
+    }
+  }
+
   const getItemsForDate = (dateStr: string) => {
     return items.filter((item) => {
       const start = item.start;
@@ -217,6 +243,16 @@ export default function CalendarPage() {
             <Badge variant="secondary" className="text-xs">
               Google Calendar connected
             </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSyncToGoogleCalendar}
+              disabled={gcalSyncing}
+              className="gap-1.5"
+            >
+              <RefreshCw className={`h-4 w-4 ${gcalSyncing ? "animate-spin" : ""}`} />
+              {gcalSyncing ? "Syncing…" : "Sync to Google Calendar"}
+            </Button>
             <Button
               variant="ghost"
               size="sm"
