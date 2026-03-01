@@ -64,7 +64,7 @@ export default function EventsPage() {
       const next = (res.events as unknown as EventItem[]) ?? [];
       setEvents((prev) => [...prev, ...next]);
     } catch {
-      // ignore
+      // ignore3
     } finally {
       setLoadingMore(false);
     }
@@ -246,7 +246,7 @@ export default function EventsPage() {
                         href={event.eventUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-primary hover:underline"
+                        className="text-xs text-[#D00000] hover:underline"
                       >
                         View Details →
                       </a>

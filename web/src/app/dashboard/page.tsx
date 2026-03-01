@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api-client";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Pizza, Play, Trash2, BookOpen, Target, FileText, Bell } from "lucide-react";
+import { Pizza, Play, Trash2, BookOpen, Target, FileText, Bell, CalendarDays } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -20,12 +20,24 @@ interface CourseWithGrade {
   currentScore: number | null;
 }
 
+interface ClassScheduleItem {
+  id: string;
+  courseCode: string | null;
+  courseTitle: string | null;
+  days: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  building: string | null;
+  room: string | null;
+}
+
 interface DashboardData {
   upcomingAssignments: any[];
   upcomingEvents: any[];
   activeSessions: any[];
   notifications: any[];
   courses: CourseWithGrade[];
+  classSchedule: ClassScheduleItem[];
 }
 
 
@@ -55,14 +67,24 @@ export default function DashboardPage() {
 
   async function loadData() {
     try {
-      const [assignmentsRes, eventsRes, sessionsRes, notifRes, coursesRes] =
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = now.getMonth();
+      const from = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+      const to = `${y}-${String(m + 1).padStart(2, "0")}-${String(new Date(y, m + 1, 0).getDate()).padStart(2, "0")}`;
+
+      const [assignmentsRes, eventsRes, sessionsRes, notifRes, coursesRes, calendarRes] =
         await Promise.allSettled([
           api.getUpcomingAssignments(),
           api.getEvents(),
           api.getSessions(),
           api.getNotifications(),
           api.getCourses(),
+          api.getCalendar(from, to),
         ]);
+
+      const calendar = calendarRes.status === "fulfilled" ? calendarRes.value : null;
+      const classSchedule = (calendar as any)?.classes ?? [];
 
       setData({
         upcomingAssignments:
@@ -85,6 +107,7 @@ export default function DashboardPage() {
           coursesRes.status === "fulfilled"
             ? (coursesRes.value.courses ?? [])
             : [],
+        classSchedule: Array.isArray(classSchedule) ? classSchedule : [],
       });
     } catch {
       // Silently handle - show empty state
@@ -161,6 +184,7 @@ export default function DashboardPage() {
   const events = data?.upcomingEvents || [];
   const sessions = data?.activeSessions || [];
   const courses = data?.courses || [];
+  const classSchedule = data?.classSchedule || [];
   const unreadNotifs = (data?.notifications || []).filter((n: any) => !n.read);
   const freeFoodEvents = events.filter((e: any) => e.hasFreeFood);
   const coursesWithGrades = courses
@@ -261,6 +285,40 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Your classes (synced from MyRed) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <CalendarDays className="w-5 h-5" />
+              Your classes
+            </span>
+            <Link href="/dashboard/calendar">
+              <Button variant="ghost" size="sm">View on Calendar</Button>
+            </Link>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {classSchedule.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No class schedule yet. Use &quot;Sync MyRed Schedule&quot; in Settings (or the extension) to pull your classes from MyRed.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {classSchedule.map((cls: ClassScheduleItem) => (
+                <li key={cls.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border/50 last:border-0">
+                  <span className="font-medium">{cls.courseCode || cls.courseTitle || "Class"}</span>
+                  <span className="text-muted-foreground">
+                    {cls.days || "—"} {cls.startTime && cls.endTime ? `${cls.startTime}–${cls.endTime}` : ""}
+                    {cls.building ? ` · ${cls.building}${cls.room ? ` ${cls.room}` : ""}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Free Food Alert */}
       {freeFoodEvents.length > 0 && !hideFreeFoodAlerts && (

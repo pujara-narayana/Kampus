@@ -412,7 +412,7 @@
       position: fixed;
       bottom: 20px;
       right: 20px;
-      background: #D00000;
+      background: #3b82f6;
       color: white;
       padding: 8px 16px;
       border-radius: 8px;

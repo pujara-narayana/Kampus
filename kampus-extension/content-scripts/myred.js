@@ -1,12 +1,11 @@
 /**
- * Kampus Content Script — MyRed (myred.unl.edu)
+ * Kampus Content Script — MyRed (myred.unl.edu / myred.nebraska.edu)
  *
- * Runs on myred.unl.edu pages. When the user navigates to their class
- * schedule page, this script parses the HTML schedule table and sends
- * the structured data to the background service worker for backend sync.
+ * Runs on MyRed pages. Scrapes the user's personal class list (enrollment list)
+ * or schedule view and sends the structured data to the background for backend sync.
  *
- * MyRed uses a Banner-style web interface that renders schedules in
- * HTML tables with the class `datadisplaytable`.
+ * We prioritize the personal enrollment list (SSR_SSENRL_LIST) so the extension
+ * always scrapes from the logged-in user's own classes, not a generic page.
  */
 
 (function kampusMyRed() {
@@ -25,30 +24,249 @@
       'student_schedule',
       'detail_schedule',
       'concise_schedule',
-      'student.main',         // The user's new link
-      'cref=nbl_nvc',         // The user's new link
-      'page=ssr_ss_week',     // The background scraper link
-      'page=ssr_ssenrl_list', // The new list-view background scraperlink
+      'student.main',         // Dashboard / student main
+      'student.main.ho',      // Dashboard schedule (post-login)
+      'cref=nbl_nvc',         // Dashboard nav
+      'weblib_dshboard',      // Dashboard iScript (schedule visible after login)
+      'nbl_nvc_dash_student',
+      'page=ssr_ss_week',
+      'page=ssr_ssenrl_list',
     ];
 
     if (schedulePatterns.some(p => url.includes(p))) {
       return true;
     }
 
-    // Also check if a schedule table is present on the page
-    const tables = document.querySelectorAll('.datadisplaytable');
+    // Also check for the user's personal enrollment/class list (SSR_SSENRL_LIST)
+    if (url.includes('ssr_ssenrl_list') || url.includes('SSR_SSENRL_LIST')) {
+      return true;
+    }
+
+    // Check if a schedule table is present on the page
+    const tables = document.querySelectorAll('.datadisplaytable, .ps_grid-row, table.PSLEVEL1GRID');
     if (tables.length > 0) {
-      // Check if any table contains schedule-like headers
       for (const table of tables) {
         const headers = table.querySelectorAll('th');
         const headerText = Array.from(headers).map(h => h.textContent.toLowerCase()).join(' ');
-        if (headerText.includes('time') || headerText.includes('days') || headerText.includes('schedule')) {
+        if (headerText.includes('time') || headerText.includes('days') || headerText.includes('schedule') ||
+            headerText.includes('subject') || headerText.includes('course') || headerText.includes('enrollment') ||
+            headerText.includes('class') || headerText.includes('section')) {
           return true;
         }
       }
     }
 
     return false;
+  }
+
+  /**
+   * Returns true if the current page is the user's personal enrollment/class list
+   * (SSR_SSENRL_LIST). This is the page we open for background scraping.
+   */
+  function isEnrollmentListPage() {
+    const url = window.location.href.toLowerCase();
+    return url.includes('ssr_ssenrl_list') || url.includes('SSR_SSENRL_LIST');
+  }
+
+  /**
+   * Returns true if the current page is the student dashboard that shows the
+   * schedule table right after login (Class, Days, Time, Delivery, Location, etc.).
+   */
+  function isDashboardSchedulePage() {
+    const url = window.location.href.toLowerCase();
+    return url.includes('student.main') || url.includes('weblib_dshboard') || url.includes('nbl_nvc_dash_student');
+  }
+
+  /**
+   * Returns true if the cell text looks like a course code (e.g. "CSCE- 361 - 001", "MATH- 310 - 002").
+   */
+  function looksLikeCourseCode(text) {
+    if (!text || typeof text !== 'string') return false;
+    const t = text.trim();
+    return /^[A-Z]{2,5}\s*-\s*\d{3}[A-Z]?\s*-\s*\S+$/i.test(t) || /^[A-Z]{2,5}\s*\d{3}[A-Z]?\s*-\s*\d{3}/i.test(t) || /^[A-Z]{2,5}\s*-\s*\d{3}/i.test(t);
+  }
+
+  /**
+   * Builds one schedule entry from row cells using column indices or fixed positions.
+   */
+  function buildScheduleEntry(classCell, days, timeRaw, locationRaw) {
+    const courseCode = (classCell || '').replace(/\s*-\s*/g, ' - ').replace(/\s+/g, ' ').trim();
+    if (!courseCode) return null;
+    let startTime = null;
+    let endTime = null;
+    if (timeRaw) {
+      const timeParts = timeRaw.split('-').map(s => (s || '').trim());
+      if (timeParts.length >= 2) {
+        startTime = convertTo24Hour(timeParts[0]);
+        endTime = convertTo24Hour(timeParts[1]);
+      }
+    }
+    let building = (locationRaw || '').trim();
+    let room = '';
+    if (building && building.toUpperCase() !== 'ONLINE' && /[A-Za-z]+\s*-\s*\S+/.test(building)) {
+      const m = building.match(/^([A-Za-z]+)\s*-\s*(\S+)/);
+      if (m) {
+        building = m[1].trim();
+        room = m[2].trim();
+      }
+    }
+    return {
+      course_code: courseCode,
+      course_title: courseCode,
+      days: (days || '').trim(),
+      start_time: startTime,
+      end_time: endTime,
+      time_raw: (timeRaw || '').trim(),
+      building,
+      room,
+      instructor: '',
+    };
+  }
+
+  /**
+   * Scrapes the MyRed dashboard schedule table: table inside #Spring2026 (or similar id),
+   * with tbody, first row = th (Class, Days, Time, ...), data rows = td with headers="classSpring2026" etc.
+   * @returns {Array<object>} Parsed entries or empty
+   */
+  function scrapeMyRedScheduleTable() {
+    const classes = [];
+    let table = document.querySelector('div[id*="Spring20"] table') ||
+      document.querySelector('div[id*="hschedd"] table') ||
+      document.querySelector('.tab-pane.active table') ||
+      document.querySelector('.zenbox .tab-content table');
+    if (!table) {
+      const cap = Array.from(document.querySelectorAll('table caption')).find(c => /Spring\s*20\d{2}/i.test(c.textContent || ''));
+      if (cap) table = cap.closest('table');
+    }
+    if (!table) return classes;
+
+    const tbody = table.querySelector('tbody');
+    const rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : Array.from(table.querySelectorAll('tr'));
+    if (rows.length < 2) return classes;
+
+    const headerRow = rows[0];
+    const headerCells = headerRow.querySelectorAll('th, td');
+    const headerIds = Array.from(headerCells).map(c => (c.getAttribute('id') || '').toLowerCase());
+    const headerTexts = Array.from(headerCells).map(c => (c.textContent || '').trim().toLowerCase());
+
+    function colIndex(ids, idMatch, texts, textMatch) {
+      const byId = ids.findIndex(id => id && idMatch(id));
+      if (byId >= 0) return byId;
+      return texts.findIndex(textMatch);
+    }
+    const idx = {
+      class: colIndex(headerIds, id => id.includes('class') && !id.includes('campus'), headerTexts, h => h === 'class' || (h && h.includes('class') && !h.includes('campus'))),
+      days: colIndex(headerIds, id => id.includes('days'), headerTexts, h => h === 'days' || (h && h.includes('days'))),
+      time: colIndex(headerIds, id => id.includes('time'), headerTexts, h => h === 'time' || (h && h.includes('time'))),
+      location: colIndex(headerIds, id => id.includes('location'), headerTexts, h => h === 'location' || (h && h.includes('location'))),
+    };
+    if (idx.class < 0) return classes;
+
+    for (let i = 1; i < rows.length; i++) {
+      const cells = rows[i].querySelectorAll('td, th');
+      if (cells.length < 3) continue;
+      const get = (index) => (index >= 0 && cells[index]) ? (cells[index].textContent || '').trim() : '';
+      const classCell = get(idx.class);
+      if (!classCell || !looksLikeCourseCode(classCell)) continue;
+      const entry = buildScheduleEntry(classCell, get(idx.days), get(idx.time), get(idx.location));
+      if (entry) classes.push(entry);
+    }
+    return classes;
+  }
+
+  /**
+   * Scrapes the schedule table on the student dashboard (the page you see right after
+   * login: Class, Days, Time, Delivery, Location, Campus, Credits).
+   * Tries the known MyRed structure first, then header-based parsing, then positional fallback.
+   * @returns {Array<object>} Parsed schedule entries
+   */
+  function scrapeDashboardSchedule() {
+    const myRedClasses = scrapeMyRedScheduleTable();
+    if (myRedClasses.length > 0) return myRedClasses;
+
+    const classes = [];
+    const seen = new Set();
+
+    function addEntry(entry) {
+      const key = (entry.course_code || '').trim();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      classes.push(entry);
+    }
+
+    const tables = document.querySelectorAll('table, [role="grid"]');
+
+    for (const table of tables) {
+      const rows = Array.from(table.querySelectorAll('tr, [role="row"]'));
+      if (rows.length < 2) continue;
+
+      let headerRow = null;
+      let headerTexts = [];
+
+      for (const row of rows) {
+        const cells = row.querySelectorAll('th, td, [role="columnheader"], [role="gridcell"]');
+        const texts = Array.from(cells).map(c => (c.textContent || '').trim().toLowerCase());
+        const joined = texts.join(' ');
+        if (joined.includes('class') && joined.includes('days') && joined.includes('time') && texts.length >= 4) {
+          headerRow = row;
+          headerTexts = texts;
+          break;
+        }
+      }
+
+      if (headerRow && headerTexts.length) {
+        const idx = {
+          class: headerTexts.findIndex(h => h === 'class' || (h && h.includes('class') && !h.includes('campus'))),
+          days: headerTexts.findIndex(h => h === 'days' || (h && h.includes('days'))),
+          time: headerTexts.findIndex(h => h === 'time' || (h && h.includes('time'))),
+          location: headerTexts.findIndex(h => h === 'location' || (h && h.includes('location'))),
+        };
+        if (idx.class >= 0) {
+          for (const row of rows) {
+            if (row === headerRow) continue;
+            const cells = row.querySelectorAll('td, [role="gridcell"], th');
+            if (cells.length < 3) continue;
+            const get = (i) => (i >= 0 && cells[i]) ? (cells[i].textContent || '').trim() : '';
+            const classCell = get(idx.class);
+            const days = get(idx.days);
+            const timeRaw = get(idx.time);
+            const locationRaw = get(idx.location);
+            if (!classCell || classCell.toLowerCase() === 'class') continue;
+            if (!looksLikeCourseCode(classCell)) continue;
+            const entry = buildScheduleEntry(classCell, days, timeRaw, locationRaw);
+            if (entry) addEntry(entry);
+          }
+          if (classes.length > 0) return classes;
+        }
+      }
+
+      for (const row of rows) {
+        const cells = row.querySelectorAll('td, [role="gridcell"], th');
+        if (cells.length < 4) continue;
+        const get = (i) => (i < cells.length && cells[i]) ? (cells[i].textContent || '').trim() : '';
+        const c0 = get(0);
+        if (!looksLikeCourseCode(c0)) continue;
+        const days = get(1);
+        const timeRaw = get(2);
+        const locationRaw = get(4) || get(3);
+        const entry = buildScheduleEntry(c0, days, timeRaw, locationRaw);
+        if (entry) addEntry(entry);
+      }
+
+      if (classes.length > 0) return classes;
+    }
+
+    const anyRow = document.querySelectorAll('tr, [role="row"]');
+    for (const row of anyRow) {
+      const cells = row.querySelectorAll('td, [role="gridcell"], th');
+      if (cells.length < 4) continue;
+      const first = (cells[0] && cells[0].textContent || '').trim();
+      if (!looksLikeCourseCode(first)) continue;
+      const entry = buildScheduleEntry(first, (cells[1] && cells[1].textContent || '').trim(), (cells[2] && cells[2].textContent || '').trim(), (cells[4] && cells[4].textContent || '').trim() || (cells[3] && cells[3].textContent || '').trim());
+      if (entry) addEntry(entry);
+    }
+
+    return classes;
   }
 
   /**
@@ -63,6 +281,14 @@
    */
   function scrapeClassSchedule() {
     const classes = [];
+
+    if (isDashboardSchedulePage()) {
+      const dashboardClasses = scrapeDashboardSchedule();
+      if (dashboardClasses.length > 0) {
+        return dashboardClasses;
+      }
+    }
+
     const tables = document.querySelectorAll('.datadisplaytable');
 
     for (const table of tables) {
@@ -151,6 +377,11 @@
       classes.push(...scrapeSimpleTable());
     }
 
+    // Fallback: user's personal class list (enrollment list page SSR_SSENRL_LIST)
+    if (classes.length === 0 && isEnrollmentListPage()) {
+      classes.push(...scrapeEnrollmentList());
+    }
+
     return classes;
   }
 
@@ -195,14 +426,126 @@
   }
 
   /**
+   * Scrapes the user's personal class list from the enrollment list page (SSR_SSENRL_LIST).
+   * This page shows enrolled courses in a list/table; columns vary but often include
+   * Subject, Catalog Nbr, Section, Course Title, and sometimes meeting time/location.
+   * @returns {Array<object>} Parsed class entries (course_code, course_title, etc.)
+   */
+  function scrapeEnrollmentList() {
+    const classes = [];
+    const tables = document.querySelectorAll('.datadisplaytable, table.PSLEVEL1GRID, .ps_grid-body');
+
+    for (const table of tables) {
+      const firstRowWithTh = table.querySelector('thead tr, tr');
+      const headerCells = firstRowWithTh ? firstRowWithTh.querySelectorAll('th, .ps_grid-cell') : [];
+      const headerTexts = Array.from(headerCells).length ? Array.from(headerCells).map(c => (c.textContent || '').trim().toLowerCase()) : [];
+
+      // Find column indices by common enrollment list headers
+      const idx = {
+        subject: headerTexts.findIndex(h => h.includes('subject') || h === 'subject'),
+        catalog: headerTexts.findIndex(h => h.includes('catalog') || h.includes('course')),
+        section: headerTexts.findIndex(h => h.includes('section')),
+        title: headerTexts.findIndex(h => h.includes('title') || h.includes('course title')),
+        time: headerTexts.findIndex(h => h.includes('time') || h.includes('meeting')),
+        days: headerTexts.findIndex(h => h.includes('days')),
+        where: headerTexts.findIndex(h => h.includes('where') || h.includes('location') || h.includes('room')),
+        instructor: headerTexts.findIndex(h => h.includes('instructor')),
+      };
+
+      const rows = table.querySelectorAll('tbody tr, tr.ps_grid-row, .datadisplaytable tr');
+      for (const row of rows) {
+        const cells = row.querySelectorAll('td, .ps_grid-cell');
+        if (cells.length < 2) continue;
+
+        const get = (i) => (i >= 0 && cells[i]) ? cells[i].textContent.trim() : '';
+
+        // Build course code: Subject + Catalog (e.g. "CSCE 361") and section
+        const subject = get(idx.subject);
+        const catalog = get(idx.catalog);
+        const section = get(idx.section);
+        const title = get(idx.title);
+        const timeRaw = get(idx.time);
+        const days = get(idx.days);
+        const where = get(idx.where);
+        const instructor = get(idx.instructor);
+
+        let courseCode = '';
+        if (subject || catalog) {
+          courseCode = [subject, catalog].filter(Boolean).join(' ');
+          if (section) courseCode += ' - ' + section;
+        }
+        if (!courseCode && cells.length >= 2) {
+          courseCode = get(0) || get(1);
+        }
+        if (!courseCode && !title) continue;
+
+        const timeParts = timeRaw ? timeRaw.split('-').map(s => s.trim()) : [];
+        let building = '';
+        let room = '';
+        if (where) {
+          const whereMatch = where.match(/^(.+?)\s+(\S+)\s*$/);
+          if (whereMatch) {
+            building = whereMatch[1].trim();
+            room = whereMatch[2].trim();
+          } else {
+            building = where;
+          }
+        }
+
+        classes.push({
+          course_code: courseCode,
+          course_title: title || courseCode,
+          days: days || '',
+          start_time: timeParts.length >= 2 ? convertTo24Hour(timeParts[0]) : null,
+          end_time: timeParts.length >= 2 ? convertTo24Hour(timeParts[1]) : null,
+          time_raw: timeRaw || '',
+          building,
+          room,
+          instructor: instructor ? instructor.replace(/\s*\(P\)\s*/g, '').trim() : '',
+        });
+      }
+    }
+
+    // Fallback: any datadisplaytable with rows that look like course rows (e.g. "CSCE 361" pattern)
+    if (classes.length === 0) {
+      const allTables = document.querySelectorAll('.datadisplaytable');
+      for (const table of allTables) {
+        const rows = table.querySelectorAll('tr');
+        for (const row of rows) {
+          const cells = row.querySelectorAll('td.dddefault, td');
+          if (cells.length < 2) continue;
+          const first = (cells[0]?.textContent || '').trim();
+          const second = (cells[1]?.textContent || '').trim();
+          const courseLike = /^[A-Z]{2,4}\s*\d{3}[A-Z]?$/i.test(first.replace(/\s/g, ' '));
+          if (courseLike && second) {
+            classes.push({
+              course_code: first,
+              course_title: second,
+              days: (cells[2]?.textContent || '').trim(),
+              start_time: null,
+              end_time: null,
+              time_raw: (cells[3]?.textContent || '').trim(),
+              building: (cells[4]?.textContent || '').trim(),
+              room: '',
+              instructor: (cells[6]?.textContent || '').trim().replace(/\s*\(P\)\s*/g, ''),
+            });
+          }
+        }
+      }
+    }
+
+    return classes;
+  }
+
+  /**
    * Converts a 12-hour time string (e.g. "2:00 pm") to 24-hour format ("14:00").
    * @param {string} timeStr
    * @returns {string|null}
    */
   function convertTo24Hour(timeStr) {
     if (!timeStr) return null;
-
-    const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+    const s = timeStr.trim();
+    const match = s.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i) || s.match(/^(\d{1,2}):(\d{2})(am|pm)$/i);
     if (!match) return null;
 
     let hours = parseInt(match[1], 10);
@@ -261,7 +604,7 @@
       position: fixed;
       bottom: 20px;
       right: 20px;
-      background: #D00000;
+      background: #3b82f6;
       color: white;
       padding: 8px 16px;
       border-radius: 8px;
@@ -440,11 +783,46 @@
 
     console.log('[Kampus] MyRed: schedule page detected. Scraping...');
 
-    // Small delay to ensure dynamic content has loaded
-    setTimeout(() => {
+    function tryScrapeAndSend() {
       const classes = scrapeClassSchedule();
-      sendToBackground(classes);
-    }, 1000);
+      if (classes.length > 0) {
+        console.log('[Kampus] MyRed: scraped', classes.length, 'classes.');
+        sendToBackground(classes);
+        return true;
+      }
+      return false;
+    }
+
+    if (isDashboardSchedulePage()) {
+      var scrapeAttempts = 0;
+      var maxAttempts = 5;
+      var attemptDelay = 2500;
+
+      function attemptScrape() {
+        scrapeAttempts += 1;
+        if (tryScrapeAndSend()) return;
+        if (scrapeAttempts < maxAttempts) {
+          console.log('[Kampus] MyRed: schedule not ready yet, retry in', attemptDelay / 1000, 's...');
+          setTimeout(attemptScrape, attemptDelay);
+        } else {
+          console.warn('[Kampus] MyRed: could not find schedule table after', maxAttempts, 'attempts.');
+        }
+      }
+
+      setTimeout(attemptScrape, 1500);
+
+      var observer = new MutationObserver(function () {
+        if (tryScrapeAndSend()) {
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      setTimeout(function () { observer.disconnect(); }, 15000);
+    } else {
+      setTimeout(function () {
+        tryScrapeAndSend();
+      }, 1000);
+    }
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') {

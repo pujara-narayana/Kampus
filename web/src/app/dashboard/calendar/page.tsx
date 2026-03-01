@@ -300,7 +300,7 @@ export default function CalendarPage() {
                         } ${isSelected ? "bg-accent ring-2 ring-primary" : ""}`}
                     >
                       <span
-                        className={`text-xs font-medium ${isToday ? "text-primary font-bold" : ""
+                        className={`text-xs font-medium ${isToday ? "text-[#D00000] font-bold" : ""
                           }`}
                       >
                         {day}

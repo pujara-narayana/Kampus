@@ -18,14 +18,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Delete existing schedule for the user's term and re-insert
-    // Use the term from the first class if available
-    const term = classes[0]?.term;
-    if (term) {
-      await prisma.classSchedule.deleteMany({
-        where: { userId: user.id, term },
-      });
-    }
+    // Replace entire schedule: delete all existing, then insert synced classes
+    await prisma.classSchedule.deleteMany({
+      where: { userId: user.id },
+    });
 
     const created = await prisma.classSchedule.createMany({
       data: classes.map((c: Record<string, unknown>) => ({

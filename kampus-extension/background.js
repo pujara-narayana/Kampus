@@ -130,8 +130,12 @@ async function handleMessage(message, sender) {
       console.log(`[Kampus] Received ${message.data.length} schedule entries from MyRed.`);
       await saveLastSync('myred');
       // Content script sends camelCase keys (course_code, course_title, etc.)
-      // Normalize to match backend expectations
-      const normalizedSchedule = message.data.map(c => ({
+      // Normalize to match backend expectations; add current term for display
+      const now = new Date();
+      const termMonth = now.getMonth();
+      const termYear = now.getFullYear();
+      const term = termMonth >= 0 && termMonth <= 4 ? `Spring ${termYear}` : termMonth <= 7 ? `Summer ${termYear}` : `Fall ${termYear}`;
+      const mapped = message.data.map(c => ({
         courseCode: c.course_code || c.courseCode || '',
         courseTitle: c.course_title || c.courseTitle || '',
         days: c.days || '',
@@ -140,8 +144,26 @@ async function handleMessage(message, sender) {
         building: c.building || '',
         room: c.room || '',
         instructor: c.instructor || '',
+        term: c.term || term,
       }));
+      // Deduplicate by course + days + time (same class can be sent from multiple frames or duplicate rows)
+      const seen = new Set();
+      const normalizedSchedule = mapped.filter((c) => {
+        const key = `${c.courseCode}|${c.days || ''}|${c.startTime || ''}|${c.building || ''}|${c.room || ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      if (normalizedSchedule.length < mapped.length) {
+        console.log(`[Kampus] Deduplicated schedule: ${mapped.length} -> ${normalizedSchedule.length} entries`);
+      }
       const schedResult = await syncSchedule(normalizedSchedule);
+
+      if (!schedResult.ok) {
+        console.error('[Kampus] Schedule sync failed:', schedResult.status, schedResult.data);
+      } else {
+        console.log('[Kampus] Schedule synced to backend:', schedResult.data?.synced ?? message.data.length, 'classes');
+      }
 
       // Close the background tab if it was opened by our scraper
       if (sender && sender.tab && sender.tab.id && sender.tab.pinned) {
@@ -708,9 +730,10 @@ async function openBackgroundScraper(url, timeoutMs = 60000) {
 }
 
 async function runMyRedScraper() {
-  console.log('[Kampus] Launching autonomous MyRed scraper...');
-  const scheduleUrl = 'https://myred.nebraska.edu/psp/myred/NBL/HRMS/c/SA_LEARNER_SERVICES.SSR_SSENRL_LIST.GBL?Page=SSR_SSENRL_LIST&SPSrc=myred&IDPName=trueyou&GHInSess=1';
-  await openBackgroundScraper(scheduleUrl, 60000); // 60s timeout
+  console.log('[Kampus] Launching MyRed scraper — opening student dashboard (schedule page)...');
+  // Dashboard URL: same page user sees right after login with Class, Days, Time, Location table
+  const dashboardUrl = 'https://myred.nebraska.edu/psc/myred/NBL/SA/s/WEBLIB_DSHBOARD.ISCRIPT1.FieldFormula.IScript_GETPAGE?cref=NBL_NVC_DASH_STUDENT&path=student.main.ho&void=all';
+  await openBackgroundScraper(dashboardUrl, 60000); // 60s timeout
 }
 
 // ---------------------------------------------------------------------------

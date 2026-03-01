@@ -78,7 +78,6 @@
   --primary-foreground: oklch(0.985 0 0);
   --accent: oklch(0.93 0 0);
   --accent-foreground: oklch(0.536 0.208 26.6);
-  /* Red text on hover */
   --ring: oklch(0.536 0.208 26.6);
   --sidebar-primary: oklch(0.536 0.208 26.6);
   --sidebar-primary-foreground: oklch(0.985 0 0);
@@ -126,7 +125,6 @@
   --primary-foreground: oklch(0.985 0 0);
   --accent: oklch(0.26 0 0);
   --accent-foreground: oklch(0.536 0.208 26.6);
-  /* Red text on hover */
   --ring: oklch(0.536 0.208 26.6);
   --sidebar-primary: oklch(0.536 0.208 26.6);
   --sidebar-primary-foreground: oklch(0.985 0 0);

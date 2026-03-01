@@ -20,6 +20,7 @@
   "host_permissions": [
     "https://canvas.unl.edu/*",
     "https://myred.nebraska.edu/*",
+    "https://myred.unl.edu/*",
     "https://unl.campuslabs.com/*",
     "https://events.unl.edu/*",
     "http://localhost:3000/*",
@@ -41,7 +42,8 @@
     },
     {
       "matches": [
-        "https://myred.nebraska.edu/*"
+        "https://myred.nebraska.edu/*",
+        "https://myred.unl.edu/*"
       ],
       "js": [
         "content-scripts/myred.js"
