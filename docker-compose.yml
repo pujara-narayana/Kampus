@@ -1,0 +1,70 @@
+version: "3.9"
+
+services:
+  # ─────────────────────────────────────────────────────────
+  #  Kampus Web App (Next.js 16)
+  # ─────────────────────────────────────────────────────────
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: kampus-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # ---- Database ----
+      DATABASE_URL: ${DATABASE_URL}
+
+      # ---- Auth ----
+      JWT_SECRET: ${JWT_SECRET}
+
+      # ---- Google OAuth / Calendar ----
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+
+      # ---- App URL (must match the public-facing URL) ----
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+
+      # ---- AI (OpenAI) ----
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: 1
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - kampus-network
+
+  # ─────────────────────────────────────────────────────────
+  #  PostgreSQL (optional – use this OR your external DB)
+  #  Comment this section out if using AWS RDS or another
+  #  managed Postgres instance.
+  # ─────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: kampus-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kampus
+      POSTGRES_USER: kampusadmin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-KampusLocal2026!}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"           # Expose locally for migrations / Prisma Studio
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kampusadmin -d kampus"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - kampus-network
+
+volumes:
+  postgres-data:
+
+networks:
+  kampus-network:
+    driver: bridge
