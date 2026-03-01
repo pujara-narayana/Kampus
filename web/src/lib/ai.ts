@@ -206,3 +206,88 @@ export function calculateWalkingDistance(
     durationMinutes: Math.round(duration * 10) / 10,
   };
 }
+
+// ---------------------------------------------------------------------------
+// 4. Behavioral Coaching Insight (Prompt 1–5 Intelligence Engine)
+// ---------------------------------------------------------------------------
+
+export interface BehavioralInsightInput {
+  profile: string;
+  confidence: number;
+  avgDaysBeforeDue: number;
+  procrastinationIndex: number;
+  weeklyStudyHours: number;
+  groupSessionRatio: number;
+  avgCourseScore: number | null;
+  alerts: { type: string; severity: string; message: string }[];
+}
+
+export interface BehavioralInsightOutput {
+  headline: string;
+  tip: string;
+  motivation: string;
+}
+
+const PROFILE_LABELS: Record<string, string> = {
+  early_planner: "Early Planner",
+  deadline_sprinter: "Deadline Sprinter",
+  social_learner: "Social Learner",
+  solo_grinder: "Solo Grinder",
+  balanced_achiever: "Balanced Achiever",
+};
+
+export async function generateBehavioralInsight(
+  data: BehavioralInsightInput
+): Promise<BehavioralInsightOutput> {
+  const label = PROFILE_LABELS[data.profile] || data.profile;
+  const fallback: BehavioralInsightOutput = {
+    headline: `You are a ${label}.`,
+    tip:
+      data.avgDaysBeforeDue < 1
+        ? "Try starting assignments at least 2 days early to improve quality and reduce stress."
+        : data.groupSessionRatio > 0.6
+        ? "Your collaborative study approach is a real strength — keep building those peer networks."
+        : "Keep your consistent study habits going — small daily efforts compound over time.",
+    motivation: "Every session and every submission brings you closer to your goals — keep going!",
+  };
+
+  const client = getOpenAIClient();
+  if (!client) return fallback;
+
+  const alertSummary =
+    data.alerts.length > 0
+      ? data.alerts.map((a) => `[${a.severity}] ${a.type}: ${a.message}`).join("; ")
+      : "none";
+
+  const prompt = `You are an academic coach at a university. Based on the behavioral analytics below, write a personalized coaching message for a student.
+
+Profile: ${label} (confidence: ${(data.confidence * 100).toFixed(0)}%)
+Avg days started before deadline: ${data.avgDaysBeforeDue.toFixed(1)}
+Procrastination index (0=early, 1=last-minute): ${data.procrastinationIndex.toFixed(2)}
+Weekly study hours: ${data.weeklyStudyHours.toFixed(1)}
+Group study ratio: ${(data.groupSessionRatio * 100).toFixed(0)}%
+Avg course score: ${data.avgCourseScore != null ? data.avgCourseScore.toFixed(1) + "%" : "not available"}
+Active alerts: ${alertSummary}
+
+Respond ONLY with valid JSON exactly matching this schema:
+{"headline": "<1 sentence describing their profile trait>", "tip": "<1-2 actionable sentences>", "motivation": "<1 encouraging sentence ending with an emoji>"}`;
+
+  try {
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.5,
+      max_tokens: 220,
+    });
+    const parsed = JSON.parse(response.choices[0].message.content || "{}");
+    return {
+      headline: parsed.headline || fallback.headline,
+      tip: parsed.tip || fallback.tip,
+      motivation: parsed.motivation || fallback.motivation,
+    };
+  } catch (err) {
+    console.error("OpenAI behavioral insight failed:", err);
+    return fallback;
+  }
+}

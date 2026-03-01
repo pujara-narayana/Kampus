@@ -1,5 +1,55 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
+// ---- Behavioral Intelligence types ----
+
+export interface BehaviorProfileSignals {
+  avgDaysBeforeDue: number;
+  procrastinationIndex: number;
+  groupSessionRatio: number;
+  soloRatio: number;
+  estimationAccuracy: number;
+  avgCourseScore: number | null;
+  gradeVariance: number;
+  weeklyStudyHours: number;
+  totalBehaviors: number;
+  totalSessions: number;
+}
+
+export interface BehaviorAlert {
+  type: "declining_grades" | "procrastination_warning" | "completion_risk";
+  severity: "info" | "warning" | "critical";
+  message: string;
+  courseId?: string;
+  courseName?: string;
+}
+
+export interface BehaviorRecommendation {
+  type: "study_session" | "campus_event" | "create_solo_session" | "review_course";
+  id: string;
+  title: string;
+  startTime: string | null;
+  engagementProbability: number;
+  academicUplift: number;
+  score: number;
+  reason: string;
+  sessionId?: string;
+  eventId?: string;
+  courseId?: string;
+}
+
+export interface BehaviorProfileResponse {
+  profile: string;
+  confidence: number;
+  signals: BehaviorProfileSignals;
+  alerts: BehaviorAlert[];
+  recommendations: BehaviorRecommendation[];
+  coaching: { headline: string; tip: string; motivation: string };
+  computedAt: string;
+  cached?: boolean;
+}
+
+// ----------------------------------------
+
 export interface SessionInvite {
   participantId: string;
   sessionId: string;
@@ -268,6 +318,7 @@ export const api = {
   // Insights
   getWeeklyInsights: () => fetchAPI<Record<string, unknown>>("/api/insights/weekly"),
   getPatterns: () => fetchAPI<Record<string, unknown>>("/api/insights/patterns"),
+  getBehaviorProfile: () => fetchAPI<BehaviorProfileResponse>("/api/insights/profile"),
 
   // Notifications
   getNotifications: () =>

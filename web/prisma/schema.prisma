@@ -40,6 +40,7 @@ model User {
   directMessages     DirectMessage[]
   groupChatMembers   GroupChatMember[]
   groupChatMessages  GroupChatMessage[]
+  behaviorProfile    UserBehaviorProfile?
   feedItems          FeedItem[]
   notifications      Notification[]
   assignmentBehaviors AssignmentBehavior[]
@@ -430,4 +431,21 @@ model GroupChatMessage {
   sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@map("group_chat_messages")
+}
+
+model UserBehaviorProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique @map("user_id")
+  profile         String   @db.VarChar(30)
+  confidence      Decimal  @db.Decimal(3, 2)
+  signals         Json
+  alerts          Json
+  recommendations Json
+  coachingInsight String?  @map("coaching_insight") @db.Text
+  computedAt      DateTime @default(now()) @map("computed_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_behavior_profiles")
 }

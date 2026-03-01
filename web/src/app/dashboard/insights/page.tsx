@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api-client";
+import { api, type BehaviorProfileResponse } from "@/lib/api-client";
 
 interface PatternData {
   procrastinationIndex: number;
@@ -35,21 +35,51 @@ interface WeeklyData {
 
 const GRADES_COLLAPSED_LIMIT = 5;
 
+const PROFILE_META: Record<string, { label: string; icon: string; color: string }> = {
+  early_planner:      { label: "Early Planner",       icon: "📅", color: "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300" },
+  deadline_sprinter:  { label: "Deadline Sprinter",   icon: "⚡", color: "bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300" },
+  social_learner:     { label: "Social Learner",      icon: "👥", color: "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300" },
+  solo_grinder:       { label: "Solo Grinder",        icon: "🎯", color: "bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300" },
+  balanced_achiever:  { label: "Balanced Achiever",   icon: "⚖️", color: "bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300" },
+};
+
+const ALERT_COLORS: Record<string, string> = {
+  info:     "border-blue-500/40 bg-blue-500/5",
+  warning:  "border-yellow-500/40 bg-yellow-500/5",
+  critical: "border-red-500/40 bg-red-500/5",
+};
+
+const ALERT_BADGE: Record<string, "secondary" | "outline" | "destructive"> = {
+  info:     "secondary",
+  warning:  "outline",
+  critical: "destructive",
+};
+
+const REC_TYPE_ICON: Record<string, string> = {
+  study_session:      "📚",
+  campus_event:       "🎉",
+  create_solo_session:"✍️",
+  review_course:      "📖",
+};
+
 export default function InsightsPage() {
   const [patterns, setPatterns] = useState<PatternData | null>(null);
   const [weekly, setWeekly] = useState<WeeklyData | null>(null);
+  const [behaviorProfile, setBehaviorProfile] = useState<BehaviorProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [gradesExpanded, setGradesExpanded] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
-        const [pRes, wRes] = await Promise.allSettled([
+        const [pRes, wRes, bRes] = await Promise.allSettled([
           api.getPatterns(),
           api.getWeeklyInsights(),
+          api.getBehaviorProfile(),
         ]);
         if (pRes.status === "fulfilled") setPatterns(pRes.value as unknown as PatternData);
         if (wRes.status === "fulfilled") setWeekly(wRes.value as unknown as WeeklyData);
+        if (bRes.status === "fulfilled") setBehaviorProfile(bRes.value as BehaviorProfileResponse);
       } catch {
         // empty
       } finally {
@@ -77,6 +107,10 @@ export default function InsightsPage() {
           ? "Procrastinator"
           : "Last Minute Larry";
 
+  const profileMeta = behaviorProfile
+    ? (PROFILE_META[behaviorProfile.profile] ?? { label: behaviorProfile.profile, icon: "🧠", color: "bg-muted border-border" })
+    : null;
+
   return (
     <div className="space-y-6">
       <div>
@@ -85,6 +119,107 @@ export default function InsightsPage() {
           Your academic patterns and behavioral analytics.
         </p>
       </div>
+
+      {/* Behavioral Profile Card */}
+      {behaviorProfile && profileMeta && (
+        <Card className={`border ${profileMeta.color}`}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">{profileMeta.icon}</span>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Your Learning Profile
+                </p>
+                <CardTitle className="text-xl">
+                  {profileMeta.label}
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    {(behaviorProfile.confidence * 100).toFixed(0)}% confidence
+                  </span>
+                </CardTitle>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="font-medium text-sm">{behaviorProfile.coaching.headline}</p>
+            <p className="text-sm text-muted-foreground">{behaviorProfile.coaching.tip}</p>
+            <p className="text-sm">{behaviorProfile.coaching.motivation}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Academic Alerts */}
+      {behaviorProfile && behaviorProfile.alerts.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Academic Alerts
+          </h2>
+          {behaviorProfile.alerts.map((alert, i) => (
+            <Card key={i} className={`border ${ALERT_COLORS[alert.severity] ?? ""}`}>
+              <CardContent className="py-3 flex items-start gap-3">
+                <span className="text-lg mt-0.5">
+                  {alert.severity === "critical" ? "🚨" : alert.severity === "warning" ? "⚠️" : "ℹ️"}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant={ALERT_BADGE[alert.severity] ?? "secondary"} className="text-xs">
+                      {alert.severity}
+                    </Badge>
+                    {alert.courseName && (
+                      <span className="text-xs text-muted-foreground">{alert.courseName}</span>
+                    )}
+                  </div>
+                  <p className="text-sm mt-1">{alert.message}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Smart Recommendations */}
+      {behaviorProfile && behaviorProfile.recommendations.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Smart Recommendations
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {behaviorProfile.recommendations.slice(0, 6).map((rec) => (
+              <Card key={rec.id} className="border">
+                <CardContent className="py-3 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <span className="text-lg">{REC_TYPE_ICON[rec.type] ?? "💡"}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium leading-tight line-clamp-2">{rec.title}</p>
+                      {rec.startTime && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {new Date(rec.startTime).toLocaleDateString(undefined, {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{rec.reason}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="secondary" className="text-xs">
+                      {(rec.engagementProbability * 100).toFixed(0)}% match
+                    </Badge>
+                    {rec.academicUplift > 0 && (
+                      <Badge variant="outline" className="text-xs text-green-600 border-green-500/40">
+                        +{(rec.academicUplift * 100).toFixed(0)}% uplift
+                      </Badge>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* AI Weekly Summary */}
       {weekly?.summary?.aiSummary && (
