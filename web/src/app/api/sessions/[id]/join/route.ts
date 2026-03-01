@@ -1,6 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
+import {
+  createGoogleCalendarEvent,
+  refreshGoogleTokensIfNeeded,
+  type GoogleTokens,
+} from "@/lib/google-calendar";
+
+async function addSessionToGoogleCalendar(
+  user: { id: string; googleToken: unknown },
+  session: {
+    title: string | null;
+    startTime: Date | null;
+    endTime: Date | null;
+    description: string | null;
+    building: string | null;
+    room: string | null;
+  }
+): Promise<boolean> {
+  const tokens = user.googleToken as GoogleTokens | null;
+  if (!tokens?.access_token || !session.startTime) return false;
+  try {
+    const freshTokens = await refreshGoogleTokensIfNeeded(tokens);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { googleToken: freshTokens as object },
+    });
+    await createGoogleCalendarEvent(freshTokens, {
+      title: session.title || "Study Session",
+      start: session.startTime,
+      end: session.endTime ?? undefined,
+      description: session.description ?? undefined,
+      location: [session.building, session.room].filter(Boolean).join(", ") || undefined,
+    });
+    return true;
+  } catch (err) {
+    console.error("Failed to add joined session to Google Calendar:", err);
+    return false;
+  }
+}
 
 export async function POST(
   req: NextRequest,
@@ -71,7 +109,11 @@ export async function POST(
         });
       }
 
-      return NextResponse.json({ message: "Already joined", participant: existing }, { status: 200 });
+      const googleCalendarAdded = await addSessionToGoogleCalendar(user, session);
+      return NextResponse.json(
+        { message: "Already joined", participant: existing, googleCalendarAdded },
+        { status: 200 }
+      );
     }
 
     const participant = await prisma.sessionParticipant.create({
@@ -106,7 +148,11 @@ export async function POST(
       });
     }
 
-    return NextResponse.json({ participant }, { status: 201 });
+    const googleCalendarAdded = await addSessionToGoogleCalendar(user, session);
+    return NextResponse.json(
+      { participant, googleCalendarAdded },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Join session error:", error);
     return NextResponse.json(

@@ -95,7 +95,10 @@ async function fetchAPI<T>(
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: "Request failed" }));
-    throw new Error(error.message || `HTTP ${res.status}`);
+    const message = error.error ?? error.message ?? `HTTP ${res.status}`;
+    const e = new Error(message) as Error & { code?: string };
+    if (error.code) e.code = error.code;
+    throw e;
   }
 
   return res.json();
@@ -132,6 +135,19 @@ export const api = {
   // Google Calendar OAuth — returns URL to redirect user to connect their calendar
   getGcalAuthUrl: () =>
     fetchAPI<{ redirectUrl: string }>("/api/gcal/auth"),
+  disconnectGcal: () =>
+    fetchAPI<{ ok: boolean }>("/api/gcal/disconnect", { method: "POST" }),
+  addEventToGoogleCalendar: (event: {
+    title: string;
+    startTime: string;
+    endTime?: string | null;
+    description?: string | null;
+    location?: string | null;
+  }) =>
+    fetchAPI<{ ok: boolean; googleCalendarAdded: boolean }>("/api/calendar/add-event", {
+      method: "POST",
+      body: JSON.stringify(event),
+    }),
 
   // Courses (with grades from extension sync)
   getCourses: () =>
@@ -159,12 +175,12 @@ export const api = {
   getSession: (id: string) =>
     fetchAPI<{ session: Record<string, unknown> }>(`/api/sessions/${id}`),
   createSession: (data: Record<string, unknown>) =>
-    fetchAPI<{ session: Record<string, unknown> }>("/api/sessions", {
+    fetchAPI<{ session: Record<string, unknown>; googleCalendarAdded?: boolean }>("/api/sessions", {
       method: "POST",
       body: JSON.stringify(data),
     }),
   joinSession: (id: string) =>
-    fetchAPI<{ participant: Record<string, unknown> }>(`/api/sessions/${id}/join`, {
+    fetchAPI<{ participant: Record<string, unknown>; googleCalendarAdded?: boolean }>(`/api/sessions/${id}/join`, {
       method: "POST",
     }),
   leaveSession: (id: string) =>
