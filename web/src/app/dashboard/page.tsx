@@ -4,10 +4,26 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/page-header";
 import { api } from "@/lib/api-client";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Pizza, Play, Trash2, BookOpen, Target, FileText, Bell, CalendarDays } from "lucide-react";
+import {
+  Pizza,
+  Play,
+  Trash2,
+  BookOpen,
+  Target,
+  FileText,
+  Bell,
+  CalendarDays,
+  ClipboardList,
+  PartyPopper,
+  Users,
+  ChevronRight,
+  Sparkles,
+} from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -174,8 +190,38 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">Loading dashboard...</p>
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <Skeleton className="h-9 w-56" />
+          <Skeleton className="h-5 w-80" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="overflow-hidden">
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-12 mb-1" />
+                <Skeleton className="h-4 w-16" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-5 w-32" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {Array.from({ length: 3 }).map((_, j) => (
+                  <Skeleton key={j} className="h-14 w-full rounded-lg" />
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
@@ -211,103 +257,131 @@ export default function DashboardPage() {
   const hiddenCount = coursesWithGrades.length - collapsedList.length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Your campus life, unified. Never miss free food again.
-          </p>
-        </div>
+    <div className="space-y-8">
+      <PageHeader
+        title="Dashboard"
+        description="Your campus life, unified. Never miss free food again."
+      >
         <div className="flex gap-2">
-          <Button onClick={handleSeed} disabled={seeding} variant="outline" className="flex items-center gap-2">
-            <Play className="w-4 h-4" /> {seeding ? "Seeding..." : "Load Demo Data"}
+          <Button
+            onClick={handleSeed}
+            disabled={seeding}
+            variant="outline"
+            size="sm"
+            className="gap-2"
+          >
+            <Play className="h-4 w-4" />
+            {seeding ? "Seeding…" : "Load Demo Data"}
           </Button>
           <Button
             onClick={handleClearDemo}
             disabled={clearing}
             variant="outline"
-            className="text-muted-foreground hover:text-destructive flex items-center gap-2"
+            size="sm"
+            className="gap-2 text-muted-foreground hover:text-destructive"
           >
-            <Trash2 className="w-4 h-4" /> {clearing ? "Clearing..." : "Remove Demo Data"}
+            <Trash2 className="h-4 w-4" />
+            {clearing ? "Clearing…" : "Remove Demo Data"}
           </Button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Stats Row */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="transition-shadow hover:shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Assignments Due
             </CardTitle>
+            <ClipboardList className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{assignments.length}</div>
+            <div className="text-2xl font-bold tabular-nums">{assignments.length}</div>
             <p className="text-xs text-muted-foreground">upcoming</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="transition-shadow hover:shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Events Today
             </CardTitle>
+            <PartyPopper className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{events.length}</div>
+            <div className="text-2xl font-bold tabular-nums">{events.length}</div>
             <p className="text-xs text-muted-foreground">on campus</p>
           </CardContent>
         </Card>
-        <Card className={freeFoodEvents.length > 0 ? "border-orange-400" : ""}>
-          <CardHeader className="pb-2">
+        <Card
+          className={
+            freeFoodEvents.length > 0
+              ? "border-orange-400/60 bg-orange-50/50 dark:bg-orange-950/10 transition-shadow hover:shadow-md"
+              : "transition-shadow hover:shadow-md"
+          }
+        >
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Free Food
             </CardTitle>
+            <Pizza className="h-4 w-4 text-[#D00000]" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold flex items-center gap-2">
-              {freeFoodEvents.length > 0 ? <><Pizza className="w-6 h-6 text-[#D00000]" /> {freeFoodEvents.length}</> : "0"}
+            <div className="text-2xl font-bold flex items-center gap-2 tabular-nums">
+              {freeFoodEvents.length > 0 ? freeFoodEvents.length : "0"}
             </div>
             <p className="text-xs text-muted-foreground">
               {freeFoodEvents.length > 0 ? "events with food!" : "none right now"}
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="transition-shadow hover:shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Study Sessions
             </CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{sessions.length}</div>
+            <div className="text-2xl font-bold tabular-nums">{sessions.length}</div>
             <p className="text-xs text-muted-foreground">active</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Your classes (synced from MyRed) */}
-      <Card>
+      <Card className="transition-shadow hover:shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <CalendarDays className="w-5 h-5" />
+              <CalendarDays className="h-5 w-5 text-muted-foreground" />
               Your classes
             </span>
             <Link href="/dashboard/calendar">
-              <Button variant="ghost" size="sm">View on Calendar</Button>
+              <Button variant="ghost" size="sm" className="gap-1">
+                View on Calendar
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </Link>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {classSchedule.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              No class schedule yet. Use &quot;Sync MyRed Schedule&quot; in Settings (or the extension) to pull your classes from MyRed.
-            </p>
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="rounded-full bg-muted p-4 mb-3">
+                <CalendarDays className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <p className="text-sm font-medium text-foreground">No class schedule yet</p>
+              <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                Use &quot;Sync MyRed Schedule&quot; in Settings or the extension to pull your classes from MyRed.
+              </p>
+              <Link href="/dashboard/settings" className="mt-4">
+                <Button variant="outline" size="sm">Go to Settings</Button>
+              </Link>
+            </div>
           ) : (
             <ul className="space-y-2">
               {classSchedule.map((cls: ClassScheduleItem) => (
-                <li key={cls.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border/50 last:border-0">
+                <li key={cls.id} className="flex items-center justify-between text-sm py-2.5 border-b border-border/50 last:border-0 transition-colors hover:bg-muted/30 rounded px-2 -mx-2">
                   <span className="font-medium">{cls.courseCode || cls.courseTitle || "Class"}</span>
                   <span className="text-muted-foreground">
                     {cls.days || "—"} {cls.startTime && cls.endTime ? `${cls.startTime}–${cls.endTime}` : ""}
@@ -322,9 +396,11 @@ export default function DashboardPage() {
 
       {/* Free Food Alert */}
       {freeFoodEvents.length > 0 && !hideFreeFoodAlerts && (
-        <Card className="border-orange-400 bg-orange-50 dark:bg-orange-950/20">
+        <Card className="border-orange-400/60 bg-orange-50 dark:bg-orange-950/20 shadow-sm">
           <CardContent className="flex items-center gap-4 py-4">
-            <Pizza className="w-8 h-8 text-[#D00000]" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-900/30">
+              <Pizza className="h-6 w-6 text-[#D00000]" />
+            </div>
             <div className="flex-1">
               <h3 className="font-semibold text-orange-700 dark:text-orange-300">
                 FREE FOOD ALERT!
@@ -367,26 +443,42 @@ export default function DashboardPage() {
       )}
 
       {/* Course Grades (synced by extension) */}
-      <Card>
+      <Card className="transition-shadow hover:shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Course Grades</span>
+            <span className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-muted-foreground" />
+              Course Grades
+            </span>
             <Link href="/dashboard/insights">
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" className="gap-1">
                 Insights
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </Link>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {courses.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              No courses yet. Sync from Canvas via the extension.
-            </p>
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="rounded-full bg-muted p-4 mb-3">
+                <BookOpen className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <p className="text-sm font-medium text-foreground">No courses yet</p>
+              <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                Sync from Canvas via the Kampus extension to see grades here.
+              </p>
+            </div>
           ) : coursesWithGrades.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              Grades will appear here after the extension syncs from Canvas.
-            </p>
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="rounded-full bg-muted p-4 mb-3">
+                <Sparkles className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <p className="text-sm font-medium text-foreground">Grades syncing</p>
+              <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                Grades will appear here after the extension syncs from Canvas.
+              </p>
+            </div>
           ) : (
             <div className="space-y-2">
               {(gradesExpanded
@@ -395,7 +487,7 @@ export default function DashboardPage() {
               ).map((c: CourseWithGrade) => (
                 <div
                   key={c.id}
-                  className="flex items-center justify-between rounded-lg border px-3 py-2"
+                  className="flex items-center justify-between rounded-lg border bg-card px-3 py-2.5 transition-colors hover:bg-muted/50"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm truncate">
@@ -436,28 +528,38 @@ export default function DashboardPage() {
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Upcoming Assignments */}
-        <Card>
+        <Card className="transition-shadow hover:shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span>Upcoming Assignments</span>
+              <span className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-muted-foreground" />
+                Upcoming Assignments
+              </span>
               <Link href="/dashboard/calendar">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="gap-1">
                   View All
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               </Link>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {assignments.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No upcoming assignments. You&apos;re all caught up!
-              </p>
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="rounded-full bg-emerald-100 dark:bg-emerald-900/20 p-4 mb-3">
+                  <ClipboardList className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <p className="text-sm font-medium text-foreground">All caught up!</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  No upcoming assignments right now.
+                </p>
+              </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {assignments.slice(0, 5).map((a: any) => (
                   <div
                     key={a.id}
-                    className="flex items-center justify-between rounded-lg border p-3"
+                    className="flex items-center justify-between rounded-lg border bg-card px-3 py-2.5 transition-colors hover:bg-muted/50"
                   >
                     <div>
                       <p className="font-medium text-sm">{a.name}</p>
@@ -492,28 +594,35 @@ export default function DashboardPage() {
         </Card>
 
         {/* Notifications */}
-        <Card>
+        <Card className="transition-shadow hover:shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span>
-                Notifications{" "}
+              <span className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-muted-foreground" />
+                Notifications
                 {unreadNotifs.length > 0 && (
-                  <Badge className="ml-2">{unreadNotifs.length}</Badge>
+                  <Badge className="ml-1" variant="default">{unreadNotifs.length}</Badge>
                 )}
               </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {unreadNotifs.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No new notifications.
-              </p>
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="rounded-full bg-muted p-4 mb-3">
+                  <Bell className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium text-foreground">All read</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  No new notifications.
+                </p>
+              </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {unreadNotifs.slice(0, 5).map((n: any) => (
                   <div
                     key={n.id}
-                    className="flex items-start gap-3 rounded-lg border p-3"
+                    className="flex items-start gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-muted/50"
                   >
                     <span className="mt-0.5">
                       {n.type === "free_food_nearby"
@@ -561,28 +670,41 @@ export default function DashboardPage() {
         </Card>
 
         {/* Study Sessions */}
-        <Card>
+        <Card className="transition-shadow hover:shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span>Study Sessions</span>
+              <span className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-muted-foreground" />
+                Study Sessions
+              </span>
               <Link href="/dashboard/sessions">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="gap-1">
                   View All
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               </Link>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {sessions.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No study sessions. Create one!
-              </p>
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="rounded-full bg-muted p-4 mb-3">
+                  <BookOpen className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium text-foreground">No study sessions</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Create one and find study buddies.
+                </p>
+                <Link href="/dashboard/sessions" className="mt-4">
+                  <Button size="sm">Create Session</Button>
+                </Link>
+              </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {sessions.slice(0, 3).map((s: any) => (
                   <div
                     key={s.id}
-                    className="flex items-center justify-between rounded-lg border p-3"
+                    className="flex items-center justify-between rounded-lg border bg-card px-3 py-2.5 transition-colors hover:bg-muted/50"
                   >
                     <div>
                       <p className="font-medium text-sm">{s.title}</p>
@@ -599,28 +721,41 @@ export default function DashboardPage() {
         </Card>
 
         {/* Upcoming Events */}
-        <Card>
+        <Card className="transition-shadow hover:shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span>Upcoming Events</span>
+              <span className="flex items-center gap-2">
+                <PartyPopper className="h-5 w-5 text-muted-foreground" />
+                Upcoming Events
+              </span>
               <Link href="/dashboard/events">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="gap-1">
                   View All
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               </Link>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {events.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No upcoming events found.
-              </p>
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="rounded-full bg-muted p-4 mb-3">
+                  <PartyPopper className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium text-foreground">No upcoming events</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Check back for campus events and free food.
+                </p>
+                <Link href="/dashboard/events" className="mt-4">
+                  <Button variant="outline" size="sm">Browse Events</Button>
+                </Link>
+              </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {events.slice(0, 4).map((e: any) => (
                   <div
                     key={e.id}
-                    className="flex items-center justify-between rounded-lg border p-3"
+                    className="flex items-center justify-between rounded-lg border bg-card px-3 py-2.5 transition-colors hover:bg-muted/50"
                   >
                     <div className="flex items-center gap-2">
                       {e.hasFreeFood && <Pizza className="w-4 h-4 text-[#D00000]" />}

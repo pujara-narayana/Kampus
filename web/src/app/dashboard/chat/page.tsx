@@ -20,7 +20,8 @@ import {
 } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { Trash2, MessageSquare } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -290,14 +291,21 @@ export default function ChatPage() {
   return (
     <div className="flex h-[calc(100vh-3rem)] -m-6">
       {/* Sidebar */}
-      <div className="w-72 border-r bg-muted/30 flex flex-col shrink-0">
-        <div className="p-4 border-b">
-          <h1 className="text-xl font-semibold">Messages</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">DMs, group chats & invites</p>
+      <div className="flex w-72 shrink-0 flex-col border-r bg-muted/30">
+        <div className="border-b p-4">
+          <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+            <MessageSquare className="h-5 w-5 text-muted-foreground" />
+            Messages
+          </h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">DMs, group chats & invites</p>
         </div>
         <ScrollArea className="flex-1">
           {loadingConvos ? (
-            <p className="p-4 text-sm text-muted-foreground">Loading...</p>
+            <div className="space-y-2 p-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-lg" />
+              ))}
+            </div>
           ) : (
             <div className="p-2 space-y-1">
               {/* Pending Session Invites */}

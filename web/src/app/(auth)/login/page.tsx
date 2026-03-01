@@ -136,7 +136,7 @@ function LoginContent() {
                         />
                     </div>
                 </CardContent>
-                <CardFooter className="flex flex-col gap-4">
+                <CardFooter className="flex flex-col gap-4 pt-2 mt-4">
                     <Button
                         type="submit"
                         className="w-full bg-white/10 hover:bg-white/20 text-white font-medium"
@@ -161,7 +161,11 @@ function LoginContent() {
 
 export default function LoginPage() {
     return (
-        <Suspense fallback={<div className="text-white text-center">Loading...</div>}>
+        <Suspense fallback={
+            <div className="animate-pulse rounded-xl border border-white/10 bg-white/5 px-6 py-12 text-center text-slate-400">
+                Loading…
+            </div>
+        }>
             <LoginContent />
         </Suspense>
     );

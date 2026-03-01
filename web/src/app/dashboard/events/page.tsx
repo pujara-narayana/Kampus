@@ -5,6 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { PageHeader } from "@/components/page-header";
 import { api } from "@/lib/api-client";
 import { Pizza, MapPin, Clock } from "lucide-react";
 import { toast } from "sonner";
@@ -99,19 +106,19 @@ export default function EventsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Events</h1>
-        <p className="text-muted-foreground">
-          Campus events, org activities, and — most importantly — free food.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        title="Events"
+        description="Campus events, org activities, and — most importantly — free food."
+      />
 
       {/* Free Food Banner */}
       {events.some((e) => e.hasFreeFood) && !hideFreeFoodAlerts && (
-        <Card className="border-orange-400 bg-orange-50 dark:bg-orange-950/20">
+        <Card className="border-orange-400/60 bg-orange-50 dark:bg-orange-950/20 shadow-sm">
           <CardContent className="flex items-center gap-4 py-4">
-            <Pizza className="w-8 h-8 text-[#D00000]" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-900/30">
+              <Pizza className="h-6 w-6 text-[#D00000]" />
+            </div>
             <div className="flex-1">
               <h3 className="font-semibold text-orange-700 dark:text-orange-300">
                 FREE FOOD SPOTTED!
@@ -122,16 +129,27 @@ export default function EventsPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                variant={filter === "free-food" ? "default" : "outline"}
-                className="border-orange-400"
-                onClick={() =>
-                  setFilter(filter === "free-food" ? "all" : "free-food")
-                }
-              >
-                {filter === "free-food" ? "Show All" : "Show Free Food"}
-              </Button>
-              <Button
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={filter === "free-food" ? "default" : "outline"}
+                    className="border-orange-400"
+                    onClick={() =>
+                      setFilter(filter === "free-food" ? "all" : "free-food")
+                    }
+                  >
+                    {filter === "free-food" ? "Show All" : "Show Free Food"}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {filter === "free-food"
+                    ? "Show all events"
+                    : "Filter to events with free food"}
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
                 variant="ghost"
                 size="sm"
                 className="text-muted-foreground hover:text-foreground"
@@ -151,6 +169,9 @@ export default function EventsPage() {
               >
                 {hidingFreeFood ? "..." : "Hide"}
               </Button>
+                </TooltipTrigger>
+                <TooltipContent>Hide this free food banner</TooltipContent>
+              </Tooltip>
             </div>
           </CardContent>
         </Card>
@@ -164,14 +185,39 @@ export default function EventsPage() {
 
         <TabsContent value={filter} className="mt-4">
           {loading ? (
-            <p className="text-center text-muted-foreground py-8">
-              Loading events...
-            </p>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Card key={i} className="overflow-hidden">
+                  <Skeleton className="aspect-video w-full rounded-none" />
+                  <CardHeader className="space-y-2">
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-3 w-1/3" />
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-2/3" />
+                    <div className="flex gap-2 pt-2">
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                      <Skeleton className="h-5 w-20 rounded-full" />
+                    </div>
+                    <Skeleton className="h-8 w-full rounded-md mt-4" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           ) : filteredEvents.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <p className="text-muted-foreground">
-                  No events found. Check back later!
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="rounded-full bg-muted p-4 mb-4">
+                  <Pizza className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <h3 className="font-semibold text-foreground">
+                  {filter === "free-food" ? "No free food events right now" : "No events found"}
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                  {filter === "free-food"
+                    ? "Switch to All Events to see everything, or check back later for free food."
+                    : "Check back later for campus events and org activities."}
                 </p>
               </CardContent>
             </Card>
@@ -181,7 +227,7 @@ export default function EventsPage() {
                 {filteredEvents.map((event) => (
                 <Card
                   key={event.id}
-                  className={`flex h-full flex-col ${event.hasFreeFood
+                  className={`flex h-full flex-col transition-shadow duration-200 hover:shadow-md ${event.hasFreeFood
                       ? "border-orange-400 dark:border-orange-600"
                       : ""
                     }`}
@@ -251,17 +297,24 @@ export default function EventsPage() {
                         View Details →
                       </a>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-auto w-full shrink-0"
-                      onClick={() => handleAddToCalendar(event)}
-                      disabled={addingToCalendarId !== null}
-                    >
-                      {addingToCalendarId === event.id
-                        ? "Adding…"
-                        : "Add to Google Calendar"}
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-auto w-full shrink-0"
+                          onClick={() => handleAddToCalendar(event)}
+                          disabled={addingToCalendarId !== null}
+                        >
+                          {addingToCalendarId === event.id
+                            ? "Adding…"
+                            : "Add to Google Calendar"}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Add this event to your Google Calendar
+                      </TooltipContent>
+                    </Tooltip>
                   </CardContent>
                 </Card>
               ))}

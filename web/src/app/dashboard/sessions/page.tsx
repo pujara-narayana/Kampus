@@ -19,6 +19,13 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { PageHeader } from "@/components/page-header";
 import { api } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
@@ -302,25 +309,35 @@ export default function SessionsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Study Sessions</h1>
-          <p className="text-muted-foreground">
-            Find study buddies or create your own study group.
-          </p>
-        </div>
+    <div className="space-y-8">
+      <PageHeader
+        title="Study Sessions"
+        description="Find study buddies or create your own study group."
+      >
         <div className="flex gap-2">
-          <Button
-            variant={showJoinedOnly ? "default" : "outline"}
-            onClick={() => setShowJoinedOnly(!showJoinedOnly)}
-          >
-            {showJoinedOnly ? "Showing Joined" : "Show Joined Only"}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={showJoinedOnly ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowJoinedOnly(!showJoinedOnly)}
+              >
+                {showJoinedOnly ? "Showing Joined" : "Show Joined Only"}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {showJoinedOnly ? "Show all sessions" : "Show only sessions you joined"}
+            </TooltipContent>
+          </Tooltip>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>Create Session</Button>
-            </DialogTrigger>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DialogTrigger asChild>
+                  <Button size="sm">Create Session</Button>
+                </DialogTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Create a new study session</TooltipContent>
+            </Tooltip>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create Study Session</DialogTitle>
@@ -394,20 +411,52 @@ export default function SessionsPage() {
             </DialogContent>
           </Dialog>
         </div>
-      </div>
+      </PageHeader>
 
       {loading ? (
-        <p className="text-center text-muted-foreground py-8">
-          Loading sessions...
-        </p>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="overflow-hidden">
+              <CardHeader className="space-y-2">
+                <div className="flex justify-between items-start">
+                  <Skeleton className="h-5 w-2/3" />
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                </div>
+                <Skeleton className="h-3 w-1/3" />
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-3 w-24 mt-2" />
+                <div className="flex gap-2 pt-4">
+                  <Skeleton className="h-8 flex-1 rounded-md" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : sessions.filter(s => !showJoinedOnly || s.hasJoined || s.isCreator).length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center flex flex-col items-center">
-            <Library className="w-12 h-12 text-[#D00000]" />
-            <h3 className="mt-4 font-semibold">No Sessions Found</h3>
-            <p className="text-muted-foreground mt-2">
-              {showJoinedOnly ? "You haven't joined any sessions yet." : "Be the first to create a study session for your courses!"}
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="rounded-full bg-muted p-4 mb-4">
+              <Library className="h-10 w-10 text-muted-foreground" />
+            </div>
+            <h3 className="font-semibold text-foreground">No sessions found</h3>
+            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+              {showJoinedOnly
+                ? "You haven't joined any sessions yet. Switch to see all or create your own."
+                : "Be the first to create a study session for your courses!"}
             </p>
+            {!showJoinedOnly && (
+              <Button
+                className="mt-4"
+                size="sm"
+                onClick={() => setDialogOpen(true)}
+              >
+                Create Session
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -415,7 +464,7 @@ export default function SessionsPage() {
           {sessions.filter(s => !showJoinedOnly || s.hasJoined || s.isCreator).map((session) => (
             <Card
               key={session.id}
-              className="cursor-pointer transition-colors hover:bg-accent/50 flex flex-col"
+              className="cursor-pointer transition-all duration-200 hover:bg-accent/50 hover:shadow-md flex flex-col"
               onClick={() => openSessionDetail(session.id)}
             >
               <CardHeader className="pb-2">
@@ -475,33 +524,48 @@ export default function SessionsPage() {
                 </div>
                 <div className="pt-4 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                   {session.isCreator && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openInvite(session)}
-                    >
-                      Invite
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openInvite(session)}
+                        >
+                          Invite
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Invite friends to this session</TooltipContent>
+                    </Tooltip>
                   )}
                   {session.isCreator ? (
                     <Badge variant="outline">Your Session</Badge>
                   ) : session.hasJoined ? (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleLeave(session.id)}
-                      className="w-full"
-                    >
-                      Leave Session
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleLeave(session.id)}
+                          className="w-full"
+                        >
+                          Leave Session
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Leave this study session</TooltipContent>
+                    </Tooltip>
                   ) : ((session as any)._count?.participants ?? session.participantCount ?? 0) < session.maxParticipants ? (
-                    <Button
-                      size="sm"
-                      onClick={() => handleJoin(session.id)}
-                      className="w-full"
-                    >
-                      Join Session
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="sm"
+                          onClick={() => handleJoin(session.id)}
+                          className="w-full"
+                        >
+                          Join Session
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Join this study session</TooltipContent>
+                    </Tooltip>
                   ) : (
                     <Badge variant="destructive">Full</Badge>
                   )}
@@ -519,7 +583,26 @@ export default function SessionsPage() {
             <DialogTitle>Session details</DialogTitle>
           </DialogHeader>
           {detailLoading ? (
-            <p className="text-sm text-muted-foreground py-4">Loading...</p>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-2/3" />
+              <div className="space-y-2 pt-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+              <div className="pt-4 space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                  <Skeleton className="h-4 flex-1" />
+                </div>
+              </div>
+            </div>
           ) : detailSession ? (
             <div className="space-y-4">
               <div>

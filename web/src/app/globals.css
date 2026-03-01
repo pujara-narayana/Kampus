@@ -48,7 +48,10 @@
 }
 
 :root {
-  --radius: 0.5rem;
+  --radius: 0.625rem;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+  --shadow-md: 0 4px 6px -1 rgb(0 0 0 / 0.05), 0 2px 4px -2 rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
 
   /* 60% Dominant: Backgrounds and core text */
   --background: oklch(0.99 0 0);
@@ -147,5 +150,19 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Subtle background texture for depth */
+  .bg-dashboard {
+    background-color: var(--background);
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, oklch(0.536 0.208 26.6 / 0.04), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 0%, oklch(0.45 0.02 260 / 0.03), transparent);
+  }
+
+  .dark .bg-dashboard {
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, oklch(0.536 0.208 26.6 / 0.08), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 0%, oklch(0.5 0.02 260 / 0.05), transparent);
   }
 }

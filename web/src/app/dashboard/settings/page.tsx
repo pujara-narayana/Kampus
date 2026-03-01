@@ -13,9 +13,10 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/page-header";
 import { api } from "@/lib/api-client";
 import { toast } from "sonner";
-import { Key, RefreshCw, PartyPopper, Calendar } from "lucide-react";
+import { Key, RefreshCw, PartyPopper, Calendar, Palette, Users, Bell } from "lucide-react";
 
 type ThemeValue = "light" | "dark" | "system";
 type SessionVisibility = "all" | "friends";
@@ -132,16 +133,17 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">
-          Customize your Kampus experience.
-        </p>
-      </div>
+      <PageHeader
+        title="Settings"
+        description="Customize your Kampus experience."
+      />
 
-      <Card>
+      <Card className="transition-shadow hover:shadow-sm">
         <CardHeader>
-          <CardTitle>Appearance</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="h-5 w-5 text-muted-foreground" />
+            Appearance
+          </CardTitle>
           <CardDescription>
             Choose how Kampus looks. You can pick a theme or use your system preference.
           </CardDescription>
@@ -172,9 +174,12 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="transition-shadow hover:shadow-sm">
         <CardHeader>
-          <CardTitle>Study Sessions</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-muted-foreground" />
+            Study Sessions
+          </CardTitle>
           <CardDescription>
             Choose which study sessions appear on the Study Sessions page.
           </CardDescription>
@@ -204,9 +209,12 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="transition-shadow hover:shadow-sm">
         <CardHeader>
-          <CardTitle>Calendar</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-muted-foreground" />
+            Calendar
+          </CardTitle>
           <CardDescription>
             Calendar and schedule preferences.
           </CardDescription>
@@ -230,9 +238,12 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="transition-shadow hover:shadow-sm">
         <CardHeader>
-          <CardTitle>Notifications</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="h-5 w-5 text-muted-foreground" />
+            Notifications
+          </CardTitle>
           <CardDescription>
             Choose what you want to be notified about.
           </CardDescription>
@@ -260,9 +271,12 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="transition-shadow hover:shadow-sm">
         <CardHeader>
-          <CardTitle>Canvas Integration</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="h-5 w-5 text-muted-foreground" />
+            Canvas Integration
+          </CardTitle>
           <CardDescription>
             Connect your Canvas account to sync courses, assignments, and grades without the extension.
           </CardDescription>
