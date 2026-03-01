@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone", // Required for Docker production image (server.js bundle)
   images: {
     remotePatterns: [
       {
